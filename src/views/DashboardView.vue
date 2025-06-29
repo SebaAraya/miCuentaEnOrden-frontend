@@ -1,5 +1,8 @@
 <template>
-  <AppLayout>
+  <!-- Selector de organización cuando es requerido -->
+  <OrganizationPicker v-if="authStore.requiresOrganizationSelection" />
+
+  <AppLayout v-else>
     <!-- Contenido del dashboard -->
     <!-- Bienvenida -->
     <div class="row mb-4">
@@ -254,7 +257,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useTransactions } from '@/composables/useTransactions'
@@ -268,6 +271,7 @@ import {
   getTransactionTypeClass
 } from '@/services/financialService'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import OrganizationPicker from '@/components/forms/OrganizationPicker.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -359,24 +363,39 @@ function getCategoryStyle(category: any) {
 }
 
 async function loadDashboardData() {
+  const filters: any = { limit: 50 }
+
+  // Agregar organizationId para ADMIN y COLABORADOR
+  if (authStore.userRole === 'ADMIN' || authStore.userRole === 'COLABORADOR') {
+    if (authStore.selectedOrganizationId) {
+      filters.organizationId = authStore.selectedOrganizationId
+    }
+  }
+
   await Promise.all([
-    fetchTransactions({ limit: 50 }),
+    fetchTransactions(filters),
     fetchCategories()
   ])
 }
 
-async function handleLogout() {
-  try {
-    await authStore.logout()
-    router.push('/login')
-  } catch (error) {
-    console.error('Error durante logout:', error)
+// Watcher para recargar cuando se seleccione organización
+watch(() => authStore.selectedOrganizationId, (newOrgId) => {
+  if (newOrgId || authStore.userRole === 'USUARIO_BASICO') {
+    loadDashboardData()
   }
-}
+})
 
 // Lifecycle
-onMounted(() => {
-  loadDashboardData()
+onMounted(async () => {
+  // Cargar organizaciones disponibles si es necesario para ADMIN/COLABORADOR
+  if (authStore.userRole === 'ADMIN' || authStore.userRole === 'COLABORADOR') {
+    await authStore.fetchAvailableOrganizations()
+  }
+
+  // Una vez que las organizaciones estén cargadas, verificar si cargar datos
+  if (!authStore.requiresOrganizationSelection) {
+    loadDashboardData()
+  }
 })
 </script>
 

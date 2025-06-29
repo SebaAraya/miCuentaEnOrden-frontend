@@ -52,6 +52,24 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/users',
+      name: 'users',
+      component: () => import('@/views/UsersView.vue'),
+      meta: { 
+        requiresAuth: true,
+        requiresRole: ['ADMIN', 'COLABORADOR']
+      }
+    },
+       {
+       path: '/organizations',
+       name: 'organizations',
+       component: () => import('@/views/OrganizationsView.vue'),
+       meta: { 
+         requiresAuth: true,
+         requiresRole: ['ADMIN']
+       }
+     },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('@/views/NotFoundView.vue')
@@ -74,7 +92,9 @@ router.beforeEach(async (to, from, next) => {
 
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   const requiresGuest = to.matched.some(record => record.meta.requiresGuest)
+  const requiresRole = to.matched.find(record => record.meta.requiresRole)?.meta.requiresRole
   const isAuthenticated = authStore.isAuthenticated
+  const userRole = authStore.user?.role
 
   if (requiresAuth && !isAuthenticated) {
     // Ruta protegida sin autenticación -> redirigir al login
@@ -82,6 +102,23 @@ router.beforeEach(async (to, from, next) => {
   } else if (requiresGuest && isAuthenticated) {
     // Ruta de invitado con autenticación -> redirigir al dashboard
     next({ name: 'dashboard' })
+  } else if (requiresRole && isAuthenticated) {
+    // Verificar permisos de rol
+    const hasRequiredRole = Array.isArray(requiresRole) 
+      ? requiresRole.includes(userRole)
+      : requiresRole === userRole
+    
+    if (!hasRequiredRole) {
+      // Sin permisos -> redirigir al dashboard con mensaje
+      next({ 
+        name: 'dashboard', 
+        query: { 
+          error: 'No tienes permisos para acceder a esta página' 
+        } 
+      })
+    } else {
+      next()
+    }
   } else {
     // Permitir navegación
     next()

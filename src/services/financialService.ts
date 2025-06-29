@@ -47,6 +47,7 @@ export async function getTransactions(filters: TransactionFilters = {}): Promise
   if (filters.minAmount) params.append('minAmount', filters.minAmount.toString())
   if (filters.maxAmount) params.append('maxAmount', filters.maxAmount.toString())
   if (filters.description) params.append('description', filters.description)
+  if (filters.organizationId) params.append('organizationId', filters.organizationId)
   if (filters.page) params.append('page', filters.page.toString())
   if (filters.limit) params.append('limit', filters.limit.toString())
 
@@ -162,12 +163,46 @@ export function validateDescription(description: string): { isValid: boolean; er
 }
 
 /**
- * Obtener fecha en formato para input date
+ * Convertir fecha ISO a formato local para input date
+ * Esto corrige el problema de zona horaria que causaba que se mostrara un día menos
  */
 export function formatDateForInput(date: Date | string): string {
-  console.log('date', date)
-  const d = new Date(date)
-  return d.toISOString().split('T')[0]
+  // Si la fecha viene como string, necesitamos parsearlo correctamente
+  let d: Date
+  
+  if (typeof date === 'string') {
+    // Si es una fecha ISO del backend, usamos el constructor Date
+    d = new Date(date)
+    
+    // Para evitar problemas de zona horaria, extraemos solo la parte de fecha
+    // y creamos una nueva fecha local
+    if (date.includes('T')) {
+      const dateOnly = date.split('T')[0]
+      const [year, month, day] = dateOnly.split('-').map(Number)
+      d = new Date(year, month - 1, day)
+    }
+  } else {
+    d = date
+  }
+  
+  // Usar getFullYear, getMonth, getDate para obtener la fecha en zona horaria local
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Convertir fecha de input local a formato para envío al backend
+ * Convierte la fecha a formato ISO manteniendo la fecha local
+ */
+export function formatDateForBackend(dateString: string): string {
+  // dateString viene como "2025-06-29" del input
+  // Creamos la fecha a las 12:00 del día para evitar problemas de zona horaria
+  const [year, month, day] = dateString.split('-').map(Number)
+  const date = new Date(year, month - 1, day, 12, 0, 0)
+  return date.toISOString()
 }
 
 /**

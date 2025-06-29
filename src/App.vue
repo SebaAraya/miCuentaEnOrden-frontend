@@ -1,5 +1,29 @@
 <script setup lang="ts">
-// App principal con router
+import { onMounted, watch } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
+
+// Cargar organizaciones cuando el usuario esté autenticado
+async function loadOrganizationsIfNeeded() {
+  if (authStore.isAuthenticated &&
+    (authStore.userRole === 'ADMIN' || authStore.userRole === 'COLABORADOR') &&
+    authStore.availableOrganizations.length === 0) {
+    await authStore.fetchAvailableOrganizations()
+  }
+}
+
+// Watcher para cargar organizaciones cuando se autentique
+watch(() => authStore.isAuthenticated, async (isAuthenticated) => {
+  if (isAuthenticated) {
+    await loadOrganizationsIfNeeded()
+  }
+})
+
+onMounted(async () => {
+  // Cargar organizaciones si ya está autenticado
+  await loadOrganizationsIfNeeded()
+})
 </script>
 
 <template>

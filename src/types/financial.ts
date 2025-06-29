@@ -83,6 +83,7 @@ export interface TransactionFilters {
   minAmount?: number
   maxAmount?: number
   description?: string
+  organizationId?: string
   page?: number
   limit?: number
 }

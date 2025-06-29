@@ -35,7 +35,13 @@ export function useTransactions() {
       error.value = null
 
       if (newFilters) {
-        filters.value = { ...filters.value, ...newFilters }
+        // Reemplazar completamente los filtros en lugar de hacer merge
+        // para evitar que persistan valores anteriores
+        filters.value = {
+          page: newFilters.page || 1,
+          limit: newFilters.limit || 10,
+          ...newFilters
+        }
       }
 
       const result = await getTransactions(filters.value)

@@ -1,5 +1,8 @@
 <template>
-  <AppLayout>
+  <!-- Selector de organización cuando es requerido -->
+  <OrganizationPicker v-if="authStore.requiresOrganizationSelection" />
+
+  <AppLayout v-else>
     <!-- Header de la página -->
     <!-- Header Section Rediseñado -->
     <div class="page-header mb-5">
@@ -11,7 +14,13 @@
                 <i class="bi bi-arrow-left-right"></i>
               </div>
               <div class="ms-2 d-flex align-items-center">
-                <h1 class="header-title mb-1">Transacciones</h1>
+                <div>
+                  <h1 class="header-title mb-1">Transacciones</h1>
+                  <p v-if="authStore.selectedOrganization" class="mb-0 text-muted small">
+                    <i class="bi bi-building me-1"></i>
+                    {{ authStore.selectedOrganization.name }}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -381,13 +390,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive, watch } from 'vue'
 import { useTransactions } from '@/composables/useTransactions'
 import { useCategories } from '@/composables/useCategories'
+import { useAuthStore } from '@/stores/auth'
 import type { Transaction, TransactionType, CreateTransactionRequest } from '@/types/financial'
 import {
   formatCurrency,
   formatDateForDisplay,
+  formatDateForInput,
+  formatDateForBackend,
   getTransactionTypeIcon,
   getTransactionTypeClass,
   getCurrentDateForInput,
@@ -396,8 +408,10 @@ import {
 } from '@/services/financialService'
 import DatePicker from '@/components/forms/DatePicker.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import OrganizationPicker from '@/components/forms/OrganizationPicker.vue'
 
 // Composables
+const authStore = useAuthStore()
 const {
   transactions,
   loading,
@@ -422,6 +436,9 @@ const {
   getCategoryById
 } = useCategories()
 
+// Estado para verificar inicialización
+const isInitialized = ref(false)
+
 // Estado local
 const isEditing = ref(false)
 const editingTransaction = ref<Transaction | null>(null)
@@ -430,7 +447,7 @@ const deleting = ref(false)
 const transactionToDelete = ref<Transaction | null>(null)
 
 // Filtros
-// Función para obtener las fechas del mes actual
+// Función para obtener las fechas del mes actual en zona horaria local
 function getCurrentMonthDates() {
   const now = new Date()
   const year = now.getFullYear()
@@ -438,11 +455,11 @@ function getCurrentMonthDates() {
 
   // Primer día del mes
   const firstDay = new Date(year, month, 1)
-  const startDate = firstDay.toISOString().split('T')[0]
+  const startDate = formatDateForInput(firstDay)
 
   // Último día del mes
   const lastDay = new Date(year, month + 1, 0)
-  const endDate = lastDay.toISOString().split('T')[0]
+  const endDate = formatDateForInput(lastDay)
 
   return { startDate, endDate }
 }
@@ -488,8 +505,6 @@ function validateForm(): boolean {
     formErrors.type = 'El tipo es requerido'
     isValid = false
   }
-
-  console.log('form.amount', form)
 
   const amountValidation = validateAmount(form.amount)
   if (!amountValidation.isValid) {
@@ -539,7 +554,7 @@ function openEditModal(transaction: Transaction) {
   form.amount = transaction.amount
   form.description = transaction.description
   form.categoryId = transaction.categoryId
-  form.transactionDate = transaction.transactionDate.split('T')[0]
+  form.transactionDate = formatDateForInput(transaction.transactionDate)
 
   clearFormErrors()
 }
@@ -555,7 +570,7 @@ async function handleSubmit() {
       amount: parseFloat(form.amount),
       description: form.description.trim(),
       categoryId: form.categoryId,
-      transactionDate: form.transactionDate
+      transactionDate: formatDateForBackend(form.transactionDate)
     }
 
     if (isEditing.value && editingTransaction.value) {
@@ -568,14 +583,12 @@ async function handleSubmit() {
     if (transactionModal.value) {
       const modal = transactionModal.value as HTMLElement
       const bootstrapModal = (window as any).bootstrap?.Modal?.getInstance(modal)
-      console.log('bootstrapModal', bootstrapModal)
       if (bootstrapModal) {
         bootstrapModal.hide()
       } else {
         // Fallback: intentar crear nueva instancia y cerrar
         try {
           const newBootstrapModal = new (window as any).bootstrap.Modal(modal)
-          console.log('newBootstrapModal', newBootstrapModal)
           newBootstrapModal.hide()
         } catch (error) {
           console.error('No se pudo cerrar el modal automáticamente:', error)
@@ -646,10 +659,19 @@ async function handleDelete() {
 function applyFilters() {
   const activeFilters: any = {}
 
-  if (filters.type) activeFilters.type = filters.type
+  if (filters.type && filters.type.trim() !== '') {
+    activeFilters.type = filters.type
+  }
   if (filters.categoryId) activeFilters.categoryId = filters.categoryId
   if (filters.startDate) activeFilters.startDate = filters.startDate
   if (filters.endDate) activeFilters.endDate = filters.endDate
+
+  // Agregar organizationId para ADMIN y COLABORADOR
+  if (authStore.userRole === 'ADMIN' || authStore.userRole === 'COLABORADOR') {
+    if (authStore.selectedOrganizationId) {
+      activeFilters.organizationId = authStore.selectedOrganizationId
+    }
+  }
 
   fetchTransactions(activeFilters)
 }
@@ -663,45 +685,38 @@ function clearFilters() {
   filters.startDate = startDate
   filters.endDate = endDate
 
-  clearTransactionFilters()
+  // Aplicar filtros limpios directamente (incluye organizationId automáticamente)
+  // NO llamamos a clearTransactionFilters() para evitar llamadas dobles
+  applyFilters()
 }
+
+async function initializeData() {
+  // Cargar organizaciones disponibles si es necesario ANTES de verificar requiresOrganizationSelection
+  if (authStore.userRole === 'ADMIN' || authStore.userRole === 'COLABORADOR') {
+    await authStore.fetchAvailableOrganizations()
+  }
+
+  // Cargar categorías
+  await fetchCategories()
+
+  // Después de cargar organizaciones, verificar si cargar transacciones
+  if (!authStore.requiresOrganizationSelection) {
+    applyFilters()
+  }
+
+  isInitialized.value = true
+}
+
+// Watcher para recargar cuando se seleccione organización
+watch(() => authStore.selectedOrganizationId, (newOrgId) => {
+  if (newOrgId && isInitialized.value) {
+    applyFilters()
+  }
+})
 
 // Lifecycle
 onMounted(async () => {
-  await Promise.all([
-    fetchCategories()
-  ])
-
-  // Aplicar filtros del mes actual automáticamente
-  applyFilters()
-
-  // Forzar que el modal backdrop no interfiera con clicks
-  /*   const style = document.createElement('style')
-    style.textContent = `
-      .modal-backdrop {
-        pointer-events: none !important;
-      }
-      .modal {
-        pointer-events: none !important;
-      }
-      .modal-dialog {
-        pointer-events: auto !important;
-      }
-      .modal-content {
-        pointer-events: auto !important;
-      }
-      .modal .form-control,
-      .modal .form-select,
-      .modal .btn,
-      .modal input,
-      .modal textarea,
-      .modal select {
-        pointer-events: auto !important;
-        position: relative;
-        z-index: 9999 !important;
-      }
-    `
-    document.head.appendChild(style) */
+  await initializeData()
 })
 </script>
 <style scoped>
