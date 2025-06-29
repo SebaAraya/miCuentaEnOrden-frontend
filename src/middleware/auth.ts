@@ -17,7 +17,6 @@ declare global {
  */
 export async function authenticateToken(req: Request, res: Response, next: NextFunction) {
   try {
-    console.log('authenticateToken')
     const authHeader = req.headers.authorization;
     const token = extractTokenFromHeader(authHeader);
 

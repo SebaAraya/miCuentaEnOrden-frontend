@@ -1,3 +1,5 @@
+import { Request } from 'express';
+
 // Re-export de tipos de Prisma
 export * from '../generated/prisma/index.js';
 
@@ -25,6 +27,11 @@ export interface AuthTokenPayload {
   email: string;
   role: string;
   organizationId?: string;
+}
+
+// Tipo para requests autenticados
+export interface AuthenticatedRequest extends Request {
+  user?: AuthTokenPayload;
 }
 
 export interface LoginRequest {

@@ -11,6 +11,8 @@ import { seedDefaultCategories } from './utils/seedCategories.js';
 import authRoutes from './routes/authRoutes.js'
 import financialRoutes from './routes/financialRoutes.js';
 import categoriesRoutes from './routes/categoriesRoutes.js';
+import organizationRoutes from './routes/organizationRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 
 const app: Application = express();
 
@@ -67,6 +69,8 @@ app.get('/health', async (req, res) => {
 // API Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/financial', financialRoutes);
+app.use('/api/v1/organizations', organizationRoutes);
+app.use('/api/v1/users', userRoutes);
 // app.use('/api/v1/categories', categoriesRoutes);
 
 // Rutas financieras básicas
@@ -138,6 +142,8 @@ app.use('/api/v1', (req, res) => {
       health: '/health',
       auth: '/api/v1/auth',
       financial: '/api/v1/financial',
+      organizations: '/api/v1/organizations',
+      users: '/api/v1/users',
       api: '/api/v1',
       docs: '/api/v1/docs' // Para futura documentación
     }

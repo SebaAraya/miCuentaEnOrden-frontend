@@ -99,18 +99,65 @@ router.post('/categories', authenticateToken, async (req: AuthenticatedRequest, 
  */
 router.get('/transactions', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = req.user!.id
+    const userId = req.user!.userId
+    const userRole = req.user!.role as string
+    const userOrgId = req.user!.organizationId
     const {
       type,
       categoryId,
       startDate,
       endDate,
+      organizationId,
       page = '1',
       limit = '20'
     } = req.query
 
-    // Construir filtros
-    const where: any = { userId }
+    // Validar selección de organización según rol
+    if (userRole === 'ADMIN') {
+      // ADMIN debe seleccionar una organización
+      if (!organizationId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Los administradores deben seleccionar una organización para ver las transacciones'
+        })
+      }
+    } else if (userRole === 'COLABORADOR') {
+      // COLABORADOR debe seleccionar una organización si pertenece a más de una
+      if (!organizationId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Debes seleccionar una organización para ver las transacciones'
+        })
+      }
+      
+      // Verificar que el COLABORADOR puede acceder a esa organización
+      if (organizationId !== userOrgId) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes acceso a las transacciones de esta organización'
+        })
+      }
+    }
+
+    // Construir filtros según rol
+    let where: any = {}
+
+    if (userRole === 'ADMIN') {
+      // ADMIN ve transacciones de la organización seleccionada
+      where.user = {
+        organizationId: organizationId as string
+      }
+    } else if (userRole === 'COLABORADOR') {
+      // COLABORADOR ve transacciones de su organización
+      where.user = {
+        organizationId: userOrgId
+      }
+    } else {
+      // USUARIO_BASICO ve todas las transacciones de su organización
+      where.user = {
+        organizationId: userOrgId
+      }
+    }
 
     if (type && (type === 'INCOME' || type === 'EXPENSE')) {
       where.type = type
@@ -125,14 +172,12 @@ router.get('/transactions', authenticateToken, async (req: AuthenticatedRequest,
       where.transactionDate = {}
       
       if (startDate) {
-        // Desde el inicio del día
         const startDateObj = new Date(startDate as string)
         startDateObj.setHours(0, 0, 0, 0)
         where.transactionDate.gte = startDateObj
       }
       
       if (endDate) {
-        // Hasta el final del día
         const endDateObj = new Date(endDate as string)
         endDateObj.setHours(23, 59, 59, 999)
         where.transactionDate.lte = endDateObj
@@ -155,6 +200,14 @@ router.get('/transactions', authenticateToken, async (req: AuthenticatedRequest,
               name: true,
               colorHex: true,
               icon: true
+            }
+          },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              organizationId: true
             }
           }
         },
@@ -198,77 +251,69 @@ router.get('/transactions', authenticateToken, async (req: AuthenticatedRequest,
  */
 router.post('/transactions', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    console.log('=== CREATING TRANSACTION ===')
-    console.log('req.body', req.body)
-    console.log('req.user', req.user)
-    
     const { amount, type, description, transactionDate, categoryId } = req.body
     const userId = req.user!.userId
-    
-    console.log('Extracted data:', { amount, type, description, transactionDate, categoryId, userId })
-    console.log('🔍 Iniciando validaciones...')
+    const userRole = req.user!.role as string
     
     // Validaciones básicas
-    console.log('📋 Validando campos requeridos...')
     if (!amount || !type || !description || !transactionDate || !categoryId) {
-      console.log('❌ Faltan campos requeridos:', { amount: !!amount, type: !!type, description: !!description, transactionDate: !!transactionDate, categoryId: !!categoryId })
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: 'Todos los campos son requeridos'
       })
-      return
     }
-    console.log('✅ Todos los campos requeridos están presentes')
 
     // Validar monto
     const amountValidation = validateAmount(amount)
     if (!amountValidation.isValid) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: amountValidation.error
       })
-      return
     }
 
     // Validar tipo
     if (!Object.values(TransactionType).includes(type)) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: 'Tipo de transacción inválido'
       })
-      return
     }
 
     // Validar descripción
     const descriptionValidation = validateDescription(description)
     if (!descriptionValidation.isValid) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: descriptionValidation.error
       })
-      return
     }
 
     // Validar fecha
     const date = new Date(transactionDate)
     if (isNaN(date.getTime())) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: 'Fecha de transacción inválida'
       })
-      return
     }
 
-    // Crear transacción
-    console.log('💾 Intentando crear transacción en la base de datos...')
-    console.log('Datos para crear:', {
-      amount: amountValidation.normalizedAmount!.toString(),
-      type,
-      description: description.trim(),
-      transactionDate: date.toISOString(),
-      categoryId,
-      userId
-    })
+    // Validaciones específicas para USUARIO_BASICO
+    if (userRole === 'USUARIO_BASICO') {
+      const now = new Date()
+      const transactionDateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+      const todayDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      
+      // Solo puede crear transacciones de hoy (dentro del rango de 1 día)
+      const diffInDays = Math.abs((transactionDateOnly.getTime() - todayDateOnly.getTime()) / (1000 * 60 * 60 * 24))
+      
+      if (diffInDays > 1) {
+        return res.status(403).json({
+          success: false,
+          message: 'Los usuarios básicos solo pueden crear transacciones dentro de 1 día desde hoy'
+        })
+      }
+    }
     
     const transaction = await db.transaction.create({
       data: {
@@ -290,8 +335,6 @@ router.post('/transactions', authenticateToken, async (req: AuthenticatedRequest
         }
       }
     })
-    
-    console.log('✅ Transacción creada exitosamente:', transaction.id)
 
     const transactionWithStringAmount = {
       ...transaction,
@@ -304,19 +347,7 @@ router.post('/transactions', authenticateToken, async (req: AuthenticatedRequest
       message: 'Transacción creada exitosamente'
     })
   } catch (error) {
-    console.error('❌ ERROR CREATING TRANSACTION ❌')
-    console.error('Error type:', typeof error)
-    console.error('Error instance:', error instanceof Error)
-    console.error('Error message:', error instanceof Error ? error.message : 'Unknown error')
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack available')
-    console.error('Full error object:', error)
-    
-    // Log additional context
-    console.error('Request data that caused error:', {
-      userId: req.user?.id,
-      body: req.body
-    })
-    
+    console.error('Error creating transaction:', error)
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
@@ -331,73 +362,120 @@ router.put('/transactions/:id', authenticateToken, async (req: AuthenticatedRequ
   try {
     const { id } = req.params
     const { amount, type, description, transactionDate, categoryId } = req.body
-    const userId = req.user!.user
-
-    console.log('req.body', req.body)
-    console.log('req.user', req.user)
-    console.log('req.params', req.params)
-    console.log('id', id)
-    console.log('userId', userId)
+    const userId = req.user!.userId
+    const userRole = req.user!.role as string
+    const userOrgId = req.user!.organizationId
     
-    // Verificar que la transacción existe y pertenece al usuario
-    const existingTransaction = await db.transaction.findFirst({
-      where: { id, userId }
+    // Verificar que la transacción existe
+    const existingTransaction = await db.transaction.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            organizationId: true
+          }
+        }
+      }
     })
 
     if (!existingTransaction) {
-      res.status(404).json({
+      return res.status(404).json({
         success: false,
         message: 'Transacción no encontrada'
       })
-      return
+    }
+
+    // Verificar permisos según rol
+    if (userRole === 'ADMIN') {
+      // ADMIN puede editar cualquier transacción (sin restricciones adicionales por ahora)
+    } else if (userRole === 'COLABORADOR') {
+      // COLABORADOR puede editar transacciones de su organización
+      if (existingTransaction.user.organizationId !== userOrgId) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para editar transacciones de otra organización'
+        })
+      }
+    } else if (userRole === 'USUARIO_BASICO') {
+      // USUARIO_BASICO solo puede editar sus propias transacciones
+      if (existingTransaction.userId !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puedes editar tus propias transacciones'
+        })
+      }
+
+      // Validar que la transacción fue creada dentro del rango permitido (1 día)
+      const now = new Date()
+      const transactionCreatedAt = new Date(existingTransaction.createdAt)
+      const diffInHours = Math.abs((now.getTime() - transactionCreatedAt.getTime()) / (1000 * 60 * 60))
+      
+      if (diffInHours > 24) {
+        return res.status(403).json({
+          success: false,
+          message: 'Los usuarios básicos solo pueden editar transacciones creadas en las últimas 24 horas'
+        })
+      }
     }
 
     // Validaciones básicas
     if (!amount || !type || !description || !transactionDate || !categoryId) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: 'Todos los campos son requeridos'
       })
-      return
     }
 
     // Validar monto
     const amountValidation = validateAmount(amount)
     if (!amountValidation.isValid) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: amountValidation.error
       })
-      return
     }
 
     // Validar tipo
     if (!Object.values(TransactionType).includes(type)) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: 'Tipo de transacción inválido'
       })
-      return
     }
 
     // Validar descripción
     const descriptionValidation = validateDescription(description)
     if (!descriptionValidation.isValid) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: descriptionValidation.error
       })
-      return
     }
 
     // Validar fecha
     const date = new Date(transactionDate)
     if (isNaN(date.getTime())) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: 'Fecha de transacción inválida'
       })
-      return
+    }
+
+    // Validaciones específicas para USUARIO_BASICO en la nueva fecha
+    if (userRole === 'USUARIO_BASICO') {
+      const now = new Date()
+      const transactionDateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+      const todayDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      
+      const diffInDays = Math.abs((transactionDateOnly.getTime() - todayDateOnly.getTime()) / (1000 * 60 * 60 * 24))
+      
+      if (diffInDays > 1) {
+        return res.status(403).json({
+          success: false,
+          message: 'Los usuarios básicos solo pueden editar transacciones con fecha dentro de 1 día desde hoy'
+        })
+      }
     }
 
     // Actualizar transacción
@@ -447,20 +525,61 @@ router.put('/transactions/:id', authenticateToken, async (req: AuthenticatedRequ
 router.delete('/transactions/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params
-    const userId = req.user!.user
+    const userId = req.user!.userId
+    const userRole = req.user!.role as string
+    const userOrgId = req.user!.organizationId
 
-    console.log('remove id', id)
-    // Verificar que la transacción existe y pertenece al usuario
-    const transaction = await db.transaction.findFirst({
-      where: { id, userId }
+    // Verificar que la transacción existe
+    const transaction = await db.transaction.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            organizationId: true
+          }
+        }
+      }
     })
 
     if (!transaction) {
-      res.status(404).json({
+      return res.status(404).json({
         success: false,
         message: 'Transacción no encontrada'
       })
-      return
+    }
+
+    // Verificar permisos según rol
+    if (userRole === 'ADMIN') {
+      // ADMIN puede eliminar cualquier transacción
+    } else if (userRole === 'COLABORADOR') {
+      // COLABORADOR puede eliminar transacciones de su organización
+      if (transaction.user.organizationId !== userOrgId) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para eliminar transacciones de otra organización'
+        })
+      }
+    } else if (userRole === 'USUARIO_BASICO') {
+      // USUARIO_BASICO solo puede eliminar sus propias transacciones
+      if (transaction.userId !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puedes eliminar tus propias transacciones'
+        })
+      }
+
+      // Validar que la transacción fue creada dentro del rango permitido (1 día)
+      const now = new Date()
+      const transactionCreatedAt = new Date(transaction.createdAt)
+      const diffInHours = Math.abs((now.getTime() - transactionCreatedAt.getTime()) / (1000 * 60 * 60))
+      
+      if (diffInHours > 24) {
+        return res.status(403).json({
+          success: false,
+          message: 'Los usuarios básicos solo pueden eliminar transacciones creadas en las últimas 24 horas'
+        })
+      }
     }
 
     // Eliminar transacción
