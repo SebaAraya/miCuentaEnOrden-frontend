@@ -70,7 +70,7 @@ app.use('/api/v1/financial', financialRoutes);
 // app.use('/api/v1/categories', categoriesRoutes);
 
 // Rutas financieras básicas
-app.get('/api/v1/financial/transactions', async (req, res) => {
+/* app.get('/api/v1/financial/transactions', async (req, res) => {
   try {
     const { page = '1', limit = '20' } = req.query
     const pageNum = parseInt(page as string) || 1
@@ -128,7 +128,7 @@ app.get('/api/v1/financial/transactions', async (req, res) => {
       message: 'Error interno del servidor'
     })
   }
-});
+}); */
 
 app.use('/api/v1', (req, res) => {
   res.json({ 

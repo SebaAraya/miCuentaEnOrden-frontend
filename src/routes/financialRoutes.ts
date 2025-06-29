@@ -103,6 +103,8 @@ router.get('/transactions', authenticateToken, async (req: AuthenticatedRequest,
     const {
       type,
       categoryId,
+      startDate,
+      endDate,
       page = '1',
       limit = '20'
     } = req.query
@@ -116,6 +118,25 @@ router.get('/transactions', authenticateToken, async (req: AuthenticatedRequest,
 
     if (categoryId) {
       where.categoryId = categoryId
+    }
+
+    // Filtros de fecha
+    if (startDate || endDate) {
+      where.transactionDate = {}
+      
+      if (startDate) {
+        // Desde el inicio del día
+        const startDateObj = new Date(startDate as string)
+        startDateObj.setHours(0, 0, 0, 0)
+        where.transactionDate.gte = startDateObj
+      }
+      
+      if (endDate) {
+        // Hasta el final del día
+        const endDateObj = new Date(endDate as string)
+        endDateObj.setHours(23, 59, 59, 999)
+        where.transactionDate.lte = endDateObj
+      }
     }
 
     // Paginación
