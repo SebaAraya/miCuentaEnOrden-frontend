@@ -10,7 +10,7 @@
               <h1 class="h2 text-white mt-3 mb-4">Únete a MiCuentaEnOrden</h1>
               <p class="text-white-50 fs-5">Comienza a gestionar tus finanzas hoy</p>
             </div>
-            
+
             <div class="benefits-list">
               <div class="benefit-item mb-3">
                 <i class="bi bi-shield-check text-success me-3"></i>
@@ -56,15 +56,8 @@
                       <i class="bi bi-person me-2"></i>
                       Nombre completo
                     </label>
-                    <input
-                      type="text"
-                      class="form-control"
-                      id="name"
-                      v-model="form.name"
-                      :class="{ 'is-invalid': errors.name }"
-                      placeholder="Tu nombre completo"
-                      required
-                    >
+                    <input type="text" class="form-control" id="name" v-model="form.name"
+                      :class="{ 'is-invalid': errors.name }" placeholder="Tu nombre completo" required>
                     <div v-if="errors.name" class="invalid-feedback">
                       {{ errors.name }}
                     </div>
@@ -75,15 +68,8 @@
                       <i class="bi bi-envelope me-2"></i>
                       Correo electrónico
                     </label>
-                    <input
-                      type="email"
-                      class="form-control"
-                      id="email"
-                      v-model="form.email"
-                      :class="{ 'is-invalid': errors.email }"
-                      placeholder="tu@email.com"
-                      required
-                    >
+                    <input type="email" class="form-control" id="email" v-model="form.email"
+                      :class="{ 'is-invalid': errors.email }" placeholder="tu@email.com" required>
                     <div v-if="errors.email" class="invalid-feedback">
                       {{ errors.email }}
                     </div>
@@ -95,27 +81,17 @@
                       Contraseña
                     </label>
                     <div class="input-group">
-                      <input
-                        :type="showPassword ? 'text' : 'password'"
-                        class="form-control"
-                        id="password"
-                        v-model="form.password"
-                        :class="{ 'is-invalid': errors.password }"
-                        placeholder="Mínimo 8 caracteres"
-                        required
-                      >
-                      <button
-                        type="button"
-                        class="btn btn-outline-secondary"
-                        @click="showPassword = !showPassword"
-                      >
+                      <input :type="showPassword ? 'text' : 'password'" class="form-control" id="password"
+                        v-model="form.password" :class="{ 'is-invalid': errors.password }"
+                        placeholder="Mínimo 8 caracteres" required>
+                      <button type="button" class="btn btn-outline-secondary" @click="showPassword = !showPassword">
                         <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
                       </button>
                       <div v-if="errors.password" class="invalid-feedback">
                         {{ errors.password }}
                       </div>
                     </div>
-                    
+
                     <!-- Indicador de fortaleza de contraseña -->
                     <div v-if="form.password" class="password-strength mt-2">
                       <div class="d-flex justify-content-between align-items-center">
@@ -123,11 +99,8 @@
                         <small :class="passwordStrengthClass">{{ passwordStrengthText }}</small>
                       </div>
                       <div class="progress" style="height: 4px;">
-                        <div 
-                          class="progress-bar" 
-                          :class="passwordStrengthClass"
-                          :style="{ width: passwordStrengthPercentage + '%' }"
-                        ></div>
+                        <div class="progress-bar" :class="passwordStrengthClass"
+                          :style="{ width: passwordStrengthPercentage + '%' }"></div>
                       </div>
                     </div>
                   </div>
@@ -137,22 +110,13 @@
                       <i class="bi bi-lock-fill me-2"></i>
                       Confirmar contraseña
                     </label>
-                    <input
-                      :type="showConfirmPassword ? 'text' : 'password'"
-                      class="form-control"
-                      id="confirmPassword"
-                      v-model="confirmPassword"
-                      :class="{ 'is-invalid': errors.confirmPassword }"
-                      placeholder="Confirma tu contraseña"
-                      required
-                    >
+                    <input :type="showConfirmPassword ? 'text' : 'password'" class="form-control" id="confirmPassword"
+                      v-model="confirmPassword" :class="{ 'is-invalid': errors.confirmPassword }"
+                      placeholder="Confirma tu contraseña" required>
                     <div class="input-group-append">
-                      <button
-                        type="button"
-                        class="btn btn-outline-secondary position-absolute end-0 top-0 h-100"
+                      <button type="button" class="btn btn-outline-secondary position-absolute end-0 top-0 h-100"
                         style="z-index: 10; border-top-left-radius: 0; border-bottom-left-radius: 0;"
-                        @click="showConfirmPassword = !showConfirmPassword"
-                      >
+                        @click="showConfirmPassword = !showConfirmPassword">
                         <i :class="showConfirmPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
                       </button>
                     </div>
@@ -163,17 +127,12 @@
 
                   <div class="mb-4">
                     <div class="form-check">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        id="acceptTerms"
-                        v-model="acceptTerms"
-                        :class="{ 'is-invalid': errors.acceptTerms }"
-                      >
+                      <input class="form-check-input" type="checkbox" id="acceptTerms" v-model="acceptTerms"
+                        :class="{ 'is-invalid': errors.acceptTerms }">
                       <label class="form-check-label" for="acceptTerms">
-                        Acepto los 
+                        Acepto los
                         <a href="#" class="text-decoration-none">términos y condiciones</a>
-                        y la 
+                        y la
                         <a href="#" class="text-decoration-none">política de privacidad</a>
                       </label>
                       <div v-if="errors.acceptTerms" class="invalid-feedback">
@@ -183,11 +142,7 @@
                   </div>
 
                   <div class="d-grid gap-2">
-                    <button
-                      type="submit"
-                      class="btn btn-primary btn-lg"
-                      :disabled="authStore.isLoading"
-                    >
+                    <button type="submit" class="btn btn-primary btn-lg" :disabled="authStore.isLoading">
                       <span v-if="authStore.isLoading" class="spinner-border spinner-border-sm me-2"></span>
                       <i v-else class="bi bi-person-plus me-2"></i>
                       {{ authStore.isLoading ? 'Creando cuenta...' : 'Crear Cuenta' }}
@@ -248,17 +203,17 @@ const passwordStrength = computed(() => {
   if (!password) return 0
 
   let score = 0
-  
+
   // Longitud
   if (password.length >= 8) score++
   if (password.length >= 12) score++
-  
+
   // Caracteres
   if (/[a-z]/.test(password)) score++
   if (/[A-Z]/.test(password)) score++
   if (/[0-9]/.test(password)) score++
   if (/[^A-Za-z0-9]/.test(password)) score++
-  
+
   return score
 })
 
@@ -343,7 +298,7 @@ async function handleRegister() {
 
   try {
     await authStore.register(form)
-    
+
     // Redirigir al dashboard
     router.push('/dashboard')
   } catch (error) {
@@ -424,9 +379,9 @@ async function handleRegister() {
   .auth-container {
     background: #f8f9fa;
   }
-  
+
   .auth-form-container {
     padding: 1rem;
   }
 }
-</style> 
+</style>

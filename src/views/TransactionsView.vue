@@ -1,77 +1,39 @@
 <template>
   <AppLayout>
     <!-- Header de la página -->
-    <div class="row mb-4">
-      <div class="col-12">
-        <div
-          class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
-          <div>
-            <h2 class="h3 mb-0">
-              <i class="bi bi-arrow-left-right me-2"></i>
-              Transacciones
-            </h2>
-            <p class="text-muted mb-0">Gestiona tus ingresos y gastos</p>
-          </div>
-
-          <button class="btn btn-primary w-100 w-md-auto" data-bs-toggle="modal" data-bs-target="#transactionModal"
-            @click="openCreateModal">
-            <i class="bi bi-plus-lg me-2"></i>
-            Nueva Transacción
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Filtros -->
-    <div class="row mb-4">
-      <div class="col-12">
-        <div class="card border-0 shadow-sm">
-          <div class="card-body">
-            <!-- Filtros superiores -->
-            <div class="row g-3 mb-3">
-              <div class="col-6 col-md-3">
-                <label class="form-label">Tipo</label>
-                <select v-model="filters.type" class="form-select" @change="applyFilters">
-                  <option value="">Todos</option>
-                  <option value="INCOME">Ingresos</option>
-                  <option value="EXPENSE">Gastos</option>
-                </select>
+    <!-- Header Section Rediseñado -->
+    <div class="page-header mb-5">
+      <div class="row align-items-center">
+        <div class="col-lg-8">
+          <div class="header-actions">
+            <div class="d-grid gap-2 d-md-flex">
+              <div class="header-icon">
+                <i class="bi bi-arrow-left-right"></i>
               </div>
-              <div class="col-6 col-md-3">
-                <label class="form-label">Categoría</label>
-                <select v-model="filters.categoryId" class="form-select" @change="applyFilters">
-                  <option value="">Todas</option>
-                  <option v-for="category in categories" :key="category.id" :value="category.id">
-                    {{ category.icon }} {{ category.name }}
-                  </option>
-                </select>
-              </div>
-              <!-- Botón limpiar filtros para móvil -->
-              <div class="col-12 d-md-none">
-                <button v-if="transactions.length > 0" @click="clearFilters" class="btn btn-outline-secondary w-100">
-                  <i class="bi bi-x-circle me-2"></i>
-                  Limpiar filtros
-                </button>
+              <div class="ms-2 d-flex align-items-center">
+                <h1 class="header-title mb-1">Transacciones</h1>
               </div>
             </div>
-
-            <!-- Filtros de fecha -->
-            <div class="row g-3">
-              <div class="col-12 col-md-6">
-                <DatePicker v-model="filters.startDate" label="Fecha desde" icon="bi bi-calendar-range"
-                  placeholder="Seleccionar fecha inicial" :clearable="true" size="sm" @change="applyFilters"
-                  @clear="applyFilters" />
-              </div>
-              <div class="col-12 col-md-6">
-                <DatePicker v-model="filters.endDate" label="Fecha hasta" icon="bi bi-calendar-range"
-                  placeholder="Seleccionar fecha final" :clearable="true" size="sm" @change="applyFilters"
-                  @clear="applyFilters" />
-              </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="header-actions">
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+              <!-- <button class="btn btn-outline-primary" type="button">
+                <i class="bi bi-download me-2"></i>
+                Exportar
+              </button> -->
+              <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#transactionModal"
+                @click="openCreateModal">
+                <i class="bi bi-plus-lg me-2"></i>
+                Nueva Transacción
+              </button>
             </div>
           </div>
         </div>
       </div>
     </div>
+
 
     <!-- Resumen -->
     <div class="row g-3 mb-4">
@@ -101,6 +63,53 @@
             <h4 class="mb-0 fw-bold" :class="netAmount >= 0 ? 'text-success' : 'text-danger'">
               {{ formatCurrency(netAmount) }}
             </h4>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-3">
+      <div class="col-12">
+        <div class="card border-0 shadow-sm">
+          <div class="card-body">
+            <!-- Filtros superiores -->
+            <div class="row g-3 mb-0">
+              <div class="col-6 col-md-3">
+                <label class="form-label">Tipo</label>
+                <select v-model="filters.type" class="form-select" @change="applyFilters">
+                  <option value="">Todos</option>
+                  <option value="INCOME">Ingresos</option>
+                  <option value="EXPENSE">Gastos</option>
+                </select>
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label">Categoría</label>
+                <select v-model="filters.categoryId" class="form-select" @change="applyFilters">
+                  <option value="">Todas</option>
+                  <option v-for="category in categories" :key="category.id" :value="category.id">
+                    {{ category.icon }} {{ category.name }}
+                  </option>
+                </select>
+              </div>
+              <div class="col-6 col-md-3">
+                <DatePicker v-model="filters.startDate" label="Fecha desde" icon="bi bi-calendar-range"
+                  placeholder="Seleccionar fecha inicial" :clearable="true" size="sm" @change="applyFilters"
+                  @clear="applyFilters" />
+              </div>
+              <div class="col-6 col-md-3">
+                <DatePicker v-model="filters.endDate" label="Fecha hasta" icon="bi bi-calendar-range"
+                  placeholder="Seleccionar fecha final" :clearable="true" size="sm" @change="applyFilters"
+                  @clear="applyFilters" />
+              </div>
+              <!-- Botón limpiar filtros para móvil -->
+              <div class="col-12 d-md-none">
+                <button v-if="transactions.length > 0" @click="clearFilters" class="btn btn-outline-secondary w-100">
+                  <i class="bi bi-x-circle me-2"></i>
+                  Limpiar filtros
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -421,11 +430,30 @@ const deleting = ref(false)
 const transactionToDelete = ref<Transaction | null>(null)
 
 // Filtros
+// Función para obtener las fechas del mes actual
+function getCurrentMonthDates() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth()
+
+  // Primer día del mes
+  const firstDay = new Date(year, month, 1)
+  const startDate = firstDay.toISOString().split('T')[0]
+
+  // Último día del mes
+  const lastDay = new Date(year, month + 1, 0)
+  const endDate = lastDay.toISOString().split('T')[0]
+
+  return { startDate, endDate }
+}
+
+const { startDate: currentMonthStart, endDate: currentMonthEnd } = getCurrentMonthDates()
+
 const filters = reactive({
   type: '',
   categoryId: '',
-  startDate: '',
-  endDate: ''
+  startDate: currentMonthStart,
+  endDate: currentMonthEnd
 })
 
 // Formulario
@@ -629,248 +657,350 @@ function applyFilters() {
 function clearFilters() {
   filters.type = ''
   filters.categoryId = ''
-  filters.startDate = ''
-  filters.endDate = ''
+
+  // Restablecer a las fechas del mes actual
+  const { startDate, endDate } = getCurrentMonthDates()
+  filters.startDate = startDate
+  filters.endDate = endDate
+
   clearTransactionFilters()
 }
 
 // Lifecycle
 onMounted(async () => {
   await Promise.all([
-    fetchTransactions(),
     fetchCategories()
   ])
+
+  // Aplicar filtros del mes actual automáticamente
+  applyFilters()
+
+  // Forzar que el modal backdrop no interfiera con clicks
+  /*   const style = document.createElement('style')
+    style.textContent = `
+      .modal-backdrop {
+        pointer-events: none !important;
+      }
+      .modal {
+        pointer-events: none !important;
+      }
+      .modal-dialog {
+        pointer-events: auto !important;
+      }
+      .modal-content {
+        pointer-events: auto !important;
+      }
+      .modal .form-control,
+      .modal .form-select,
+      .modal .btn,
+      .modal input,
+      .modal textarea,
+      .modal select {
+        pointer-events: auto !important;
+        position: relative;
+        z-index: 9999 !important;
+      }
+    `
+    document.head.appendChild(style) */
 })
 </script>
-
 <style scoped>
+/* Header Section Moderno */
+.page-header {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.8) 100%);
+  border-radius: 1rem;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.page-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  transform: translate(50%, -50%);
+}
+
+.header-icon {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.75rem;
+  box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.4);
+  position: relative;
+}
+
+.header-icon::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  border-radius: 1rem;
+  z-index: -1;
+  opacity: 0.3;
+  filter: blur(8px);
+}
+
+.header-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+.header-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.breadcrumb-item {
+  color: #9ca3af;
+  transition: color 0.2s ease;
+}
+
+.breadcrumb-item.active {
+  color: #22c55e;
+  font-weight: 600;
+}
+
+.breadcrumb-item:hover:not(.active) {
+  color: #6b7280;
+}
+
+.header-breadcrumb i {
+  font-size: 0.75rem;
+  color: #d1d5db;
+}
+
+.header-description {
+  font-size: 1.125rem;
+  color: #4b5563;
+  line-height: 1.6;
+  max-width: 600px;
+}
+
+.header-actions {
+  position: relative;
+  z-index: 2;
+}
+
+.header-actions .btn {
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.header-actions .btn-primary {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border: none;
+  box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.4);
+}
+
+.header-actions .btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(34, 197, 94, 0.4);
+}
+
+.header-actions .btn-outline-primary {
+  border: 2px solid #22c55e;
+  color: #22c55e;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+}
+
+.header-actions .btn-outline-primary:hover {
+  background: #22c55e;
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* Quick Stats */
+.quick-stats {
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(229, 231, 235, 0.5);
+}
+
+.stat-mini {
+  text-align: center;
+  padding: 0.75rem 0.5rem;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 0.5rem;
+  transition: transform 0.2s ease;
+}
+
+.stat-mini:hover {
+  transform: translateY(-2px);
+}
+
+.stat-mini-value {
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+  letter-spacing: -0.025em;
+}
+
+.stat-mini-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
 /* Estilos existentes mejorados */
 .table th {
   font-weight: 600;
   font-size: 0.875rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border: none;
+  color: #374151;
+  padding: 1rem;
 }
 
 .card {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
 }
 
 .card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 .btn-group-sm .btn {
   padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
 }
 
 .badge {
   font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.5rem;
 }
 
-/* ===== MEJORAS RESPONSIVE ===== */
-
-/* Estilos del botón volver */
-.btn-outline-secondary {
-  border-color: #dee2e6;
-  color: #6c757d;
-  transition: all 0.15s ease-in-out;
-}
-
-.btn-outline-secondary:hover {
-  background-color: #6c757d;
-  border-color: #6c757d;
-  color: #fff;
-  transform: translateX(-2px);
-}
-
-.btn-outline-secondary:focus {
-  box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.25);
-}
-
-/* Animaciones para cards de transacciones en móvil */
 .transaction-card {
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 0.75rem;
+  border: 1px solid rgba(229, 231, 235, 0.5);
 }
 
 .transaction-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.12) !important;
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border-color: rgba(34, 197, 94, 0.3);
 }
 
-/* Responsive para dispositivos móviles pequeños */
-@media (max-width: 575.98px) {
-  .container-fluid {
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-  }
-
-  .card {
-    border-radius: 0.75rem;
-    margin-bottom: 1rem;
-  }
-
-  .card-body {
-    padding: 0.875rem !important;
-  }
-
-  .btn {
-    font-size: 0.8rem;
-    padding: 0.375rem 0.75rem;
-  }
-
-  .btn-sm {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
-  }
-
-  .badge {
-    font-size: 0.7rem;
-    padding: 0.25rem 0.5rem;
-  }
-
-  /* Ajustar el título en móviles */
-  .h3 {
-    font-size: 1.5rem;
-  }
-
-  /* Mejorar espaciado en filtros */
-  .row.g-3>* {
-    margin-bottom: 0.75rem;
-  }
-
-  /* Ajustar el modal en móviles */
-  .modal-dialog {
-    margin: 0.5rem;
-  }
-}
-
-/* Responsive para tablets */
-@media (min-width: 576px) and (max-width: 991.98px) {
-
-  .table th,
-  .table td {
-    padding: 0.5rem;
-    font-size: 0.875rem;
-  }
-
-  .btn-group-sm>.btn {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-  }
-
-  .card-body {
-    padding: 1.25rem;
-  }
-}
-
-/* Mejorar experiencia en pantallas medianas */
-@media (min-width: 768px) and (max-width: 991.98px) {
-  .container-fluid {
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-  }
-}
-
-/* ===== ANIMACIONES MEJORADAS ===== */
 .btn {
-  transition: all 0.15s ease-in-out;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 500;
 }
 
 .btn:hover:not(:disabled) {
   transform: translateY(-1px);
 }
 
-.badge {
-  transition: all 0.15s ease-in-out;
-}
-
 .form-control,
 .form-select {
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  transition: all 0.2s ease;
+  border-radius: 0.5rem;
 }
 
-/* ===== MEJORAS ESPECÍFICAS PARA DATEPICKER ===== */
-@media (max-width: 575.98px) {
-  :deep(.date-picker-container .form-text) {
-    font-size: 0.75rem;
-    margin-top: 0.25rem;
+.form-control:focus,
+.form-select:focus {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 991.98px) {
+  .page-header {
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
   }
 
-  :deep(.input-group-text) {
-    padding: 0.375rem 0.5rem;
+  .header-title {
+    font-size: 1.75rem;
   }
 
-  :deep(.input-group-sm .input-group-text) {
-    padding: 0.25rem 0.375rem;
-    font-size: 0.8rem;
+  .header-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
   }
 
-  :deep(.input-group-sm .form-control) {
-    font-size: 0.8rem;
+  .quick-stats {
+    margin-top: 1.5rem;
+  }
+
+  .header-actions .btn {
+    width: 100%;
+    margin-bottom: 0.5rem;
   }
 }
 
-/* ===== UTILIDADES RESPONSIVE ADICIONALES ===== */
 @media (max-width: 767.98px) {
-
-  /* Clases utilitarias personalizadas para móvil */
-  .w-md-auto {
-    width: 100% !important;
+  .page-header {
+    padding: 1rem;
   }
 
-  /* Mejorar el estado de loading en móvil */
-  .spinner-border {
-    width: 2rem;
-    height: 2rem;
+  .header-title {
+    font-size: 1.5rem;
   }
 
-  /* Ajustar iconos en móvil */
-  .fs-1 {
-    font-size: 2.5rem !important;
-  }
-}
-
-/* Asegurar que los botones tengan buen tamaño de toque en móvil */
-@media (max-width: 767.98px) {
-  .btn {
-    min-height: 44px;
-    min-width: 44px;
+  .d-flex.align-items-center {
+    flex-direction: column;
+    text-align: center;
   }
 
-  .btn-sm {
-    min-height: 38px;
-    min-width: 38px;
+  .header-icon {
+    margin-bottom: 1rem;
+  }
+
+  .ms-3 {
+    margin-left: 0 !important;
   }
 }
 
-/* ===== MEJORAS PARA ACCESIBILIDAD ===== */
+/* Accesibilidad */
 @media (prefers-reduced-motion: reduce) {
 
+  .page-header,
+  .header-icon,
+  .stat-mini,
   .card,
-  .btn,
-  .badge,
-  .transaction-card {
+  .btn {
     transition: none !important;
   }
 
-  .card:hover,
-  .btn:hover,
-  .transaction-card:hover {
-    transform: none !important;
-  }
-}
-
-/* Mejorar contraste en modo oscuro si se implementa */
-@media (prefers-color-scheme: dark) {
-  .card {
-    border: 1px solid rgba(255, 255, 255, 0.125);
-  }
-
-  .table-light {
-    background-color: rgba(255, 255, 255, 0.05);
+  .page-header::before {
+    display: none;
   }
 }
 </style>

@@ -5,7 +5,7 @@
 
     <!-- Contenido principal -->
     <main class="main-content">
-      <div class="container-fluid py-4">
+      <div class="container-fluid px-3 px-lg-4 py-4">
         <slot />
       </div>
     </main>
@@ -21,17 +21,22 @@ import AppNavbar from './AppNavbar.vue'
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: linear-gradient(135deg, #fafbfc 0%, #f3f4f6 100%);
 }
 
 .main-content {
   flex: 1;
-  background-color: #f8f9fa;
+  background: transparent;
+  position: relative;
 }
 
 /* Asegurar que el contenido se extienda completamente */
 .container-fluid {
   min-height: calc(100vh - 76px);
   /* Altura menos el navbar */
+  width: 100%;
+  max-width: none;
+  /* Anular cualquier max-width heredado */
 }
 
 /* Mejoras para accesibilidad */
@@ -40,21 +45,6 @@ import AppNavbar from './AppNavbar.vue'
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-  }
-}
-
-/* Responsive adjustments */
-@media (max-width: 767.98px) {
-  .container-fluid {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-}
-
-@media (min-width: 768px) and (max-width: 991.98px) {
-  .container-fluid {
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
   }
 }
 </style>

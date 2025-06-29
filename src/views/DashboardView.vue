@@ -260,7 +260,6 @@ import { useAuthStore } from '@/stores/auth'
 import { useTransactions } from '@/composables/useTransactions'
 import { useCategories } from '@/composables/useCategories'
 import { UserRole } from '@/types/auth'
-import { TransactionType } from '@/types/financial'
 
 import {
   formatCurrency,
