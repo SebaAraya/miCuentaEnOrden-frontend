@@ -1,0 +1,876 @@
+<template>
+  <AppLayout>
+    <!-- Header de la página -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div
+          class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+          <div>
+            <h2 class="h3 mb-0">
+              <i class="bi bi-arrow-left-right me-2"></i>
+              Transacciones
+            </h2>
+            <p class="text-muted mb-0">Gestiona tus ingresos y gastos</p>
+          </div>
+
+          <button class="btn btn-primary w-100 w-md-auto" data-bs-toggle="modal" data-bs-target="#transactionModal"
+            @click="openCreateModal">
+            <i class="bi bi-plus-lg me-2"></i>
+            Nueva Transacción
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card border-0 shadow-sm">
+          <div class="card-body">
+            <!-- Filtros superiores -->
+            <div class="row g-3 mb-3">
+              <div class="col-6 col-md-3">
+                <label class="form-label">Tipo</label>
+                <select v-model="filters.type" class="form-select" @change="applyFilters">
+                  <option value="">Todos</option>
+                  <option value="INCOME">Ingresos</option>
+                  <option value="EXPENSE">Gastos</option>
+                </select>
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label">Categoría</label>
+                <select v-model="filters.categoryId" class="form-select" @change="applyFilters">
+                  <option value="">Todas</option>
+                  <option v-for="category in categories" :key="category.id" :value="category.id">
+                    {{ category.icon }} {{ category.name }}
+                  </option>
+                </select>
+              </div>
+              <!-- Botón limpiar filtros para móvil -->
+              <div class="col-12 d-md-none">
+                <button v-if="transactions.length > 0" @click="clearFilters" class="btn btn-outline-secondary w-100">
+                  <i class="bi bi-x-circle me-2"></i>
+                  Limpiar filtros
+                </button>
+              </div>
+            </div>
+
+            <!-- Filtros de fecha -->
+            <div class="row g-3">
+              <div class="col-12 col-md-6">
+                <DatePicker v-model="filters.startDate" label="Fecha desde" icon="bi bi-calendar-range"
+                  placeholder="Seleccionar fecha inicial" :clearable="true" size="sm" @change="applyFilters"
+                  @clear="applyFilters" />
+              </div>
+              <div class="col-12 col-md-6">
+                <DatePicker v-model="filters.endDate" label="Fecha hasta" icon="bi bi-calendar-range"
+                  placeholder="Seleccionar fecha final" :clearable="true" size="sm" @change="applyFilters"
+                  @clear="applyFilters" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resumen -->
+    <div class="row g-3 mb-4">
+      <div class="col-12 col-sm-6 col-lg-4">
+        <div class="card border-0 shadow-sm text-center h-100">
+          <div class="card-body d-flex flex-column justify-content-center">
+            <i class="bi bi-arrow-up-circle-fill text-success fs-1 mb-2"></i>
+            <h6 class="text-muted mb-1">Total Ingresos</h6>
+            <h4 class="text-success mb-0 fw-bold">{{ formatCurrency(totalIncome) }}</h4>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-lg-4">
+        <div class="card border-0 shadow-sm text-center h-100">
+          <div class="card-body d-flex flex-column justify-content-center">
+            <i class="bi bi-arrow-down-circle-fill text-danger fs-1 mb-2"></i>
+            <h6 class="text-muted mb-1">Total Gastos</h6>
+            <h4 class="text-danger mb-0 fw-bold">{{ formatCurrency(totalExpenses) }}</h4>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-12 col-lg-4">
+        <div class="card border-0 shadow-sm text-center h-100">
+          <div class="card-body d-flex flex-column justify-content-center">
+            <i class="bi bi-wallet2 fs-1 mb-2" :class="netAmount >= 0 ? 'text-success' : 'text-danger'"></i>
+            <h6 class="text-muted mb-1">Balance</h6>
+            <h4 class="mb-0 fw-bold" :class="netAmount >= 0 ? 'text-success' : 'text-danger'">
+              {{ formatCurrency(netAmount) }}
+            </h4>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lista de transacciones -->
+    <div class="row">
+      <div class="col-12">
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-transparent border-0">
+            <div
+              class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+              <h5 class="card-title mb-0">
+                <i class="bi bi-list-ul me-2"></i>
+                <span class="d-none d-sm-inline">Transacciones ({{ transactions.length }})</span>
+                <span class="d-sm-none">Transacciones</span>
+              </h5>
+              <button v-if="transactions.length > 0" @click="clearFilters"
+                class="btn btn-outline-secondary btn-sm d-none d-md-block">
+                <i class="bi bi-x-circle me-1"></i>
+                Limpiar filtros
+              </button>
+            </div>
+          </div>
+          <div class="card-body p-0">
+            <!-- Loading state -->
+            <div v-if="loading" class="text-center py-5">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+              </div>
+              <p class="mt-3 text-muted">Cargando transacciones...</p>
+            </div>
+
+            <!-- Error state -->
+            <div v-else-if="error" class="alert alert-danger m-3" role="alert">
+              <i class="bi bi-exclamation-triangle me-2"></i>
+              {{ error }}
+            </div>
+
+            <!-- Empty state -->
+            <div v-else-if="!hasTransactions" class="text-center py-5">
+              <i class="bi bi-receipt text-muted" style="font-size: 4rem;"></i>
+              <h5 class="text-muted mt-3">No hay transacciones</h5>
+              <p class="text-muted">Comienza agregando tu primera transacción</p>
+              <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#transactionModal"
+                @click="openCreateModal">
+                <i class="bi bi-plus-lg me-2"></i>
+                Agregar Transacción
+              </button>
+            </div>
+
+            <!-- Transactions list -->
+            <div v-else>
+              <!-- Desktop table -->
+              <div class="d-none d-md-block">
+                <div class="table-responsive">
+                  <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Descripción</th>
+                        <th>Categoría</th>
+                        <th>Tipo</th>
+                        <th class="text-end">Monto</th>
+                        <th class="text-center">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="transaction in transactions" :key="transaction.id">
+                        <td>
+                          <small class="text-muted">{{ formatDateForDisplay(transaction.transactionDate) }}</small>
+                        </td>
+                        <td>
+                          <div class="fw-medium">{{ transaction.description }}</div>
+                        </td>
+                        <td>
+                          <span class="badge" :style="{
+                            backgroundColor: getCategoryById(transaction.categoryId)?.colorHex + '20',
+                            color: getCategoryById(transaction.categoryId)?.colorHex,
+                            border: `1px solid ${getCategoryById(transaction.categoryId)?.colorHex}40`
+                          }">
+                            {{ getCategoryById(transaction.categoryId)?.icon }}
+                            {{ getCategoryById(transaction.categoryId)?.name }}
+                          </span>
+                        </td>
+                        <td>
+                          <span class="badge"
+                            :class="transaction.type === 'INCOME' ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
+                            <i :class="getTransactionTypeIcon(transaction.type)"></i>
+                            {{ transaction.type === 'INCOME' ? 'Ingreso' : 'Gasto' }}
+                          </span>
+                        </td>
+                        <td class="text-end">
+                          <span class="fw-medium" :class="getTransactionTypeClass(transaction.type)">
+                            {{ transaction.type === 'INCOME' ? '+' : '-' }}{{ formatCurrency(transaction.amount) }}
+                          </span>
+                        </td>
+                        <td class="text-center">
+                          <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" @click="openEditModal(transaction)"
+                              data-bs-toggle="modal" data-bs-target="#transactionModal">
+                              <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" @click="confirmDelete(transaction)">
+                              <i class="bi bi-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Mobile cards -->
+              <div class="d-md-none">
+                <div class="row g-3">
+                  <div v-for="transaction in transactions" :key="`mobile-${transaction.id}`" class="col-12">
+                    <div class="card border-0 shadow-sm transaction-card">
+                      <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                          <div class="flex-grow-1">
+                            <h6 class="mb-1 fw-bold">{{ transaction.description }}</h6>
+                            <small class="text-muted">
+                              <i class="bi bi-calendar3 me-1"></i>
+                              {{ formatDateForDisplay(transaction.transactionDate) }}
+                            </small>
+                          </div>
+                          <div class="text-end">
+                            <div class="fw-bold fs-5 mb-1" :class="getTransactionTypeClass(transaction.type)">
+                              {{ transaction.type === 'INCOME' ? '+' : '-' }}{{ formatCurrency(transaction.amount) }}
+                            </div>
+                            <span class="badge"
+                              :class="transaction.type === 'INCOME' ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
+                              <i :class="getTransactionTypeIcon(transaction.type)"></i>
+                              {{ transaction.type === 'INCOME' ? 'Ingreso' : 'Gasto' }}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center">
+                          <span class="badge" :style="{
+                            backgroundColor: getCategoryById(transaction.categoryId)?.colorHex + '20',
+                            color: getCategoryById(transaction.categoryId)?.colorHex,
+                            border: `1px solid ${getCategoryById(transaction.categoryId)?.colorHex}40`
+                          }">
+                            {{ getCategoryById(transaction.categoryId)?.icon }}
+                            {{ getCategoryById(transaction.categoryId)?.name }}
+                          </span>
+
+                          <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary btn-sm" @click="openEditModal(transaction)"
+                              data-bs-toggle="modal" data-bs-target="#transactionModal">
+                              <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" @click="confirmDelete(transaction)">
+                              <i class="bi bi-trash"></i>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de transacción -->
+    <div class="modal fade" id="transactionModal" ref="transactionModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <i class="bi bi-plus-circle me-2"></i>
+              {{ isEditing ? 'Editar' : 'Nueva' }} Transacción
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <form @submit.prevent="handleSubmit">
+            <div class="modal-body">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label">Tipo *</label>
+                  <select v-model="form.type" class="form-select" :class="{ 'is-invalid': formErrors.type }" required>
+                    <option value="">Seleccionar tipo</option>
+                    <option value="INCOME">Ingreso</option>
+                    <option value="EXPENSE">Gasto</option>
+                  </select>
+                  <div v-if="formErrors.type" class="invalid-feedback">{{ formErrors.type }}</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Monto *</label>
+                  <input v-model="form.amount" type="number" step="1" min="1" class="form-control"
+                    :class="{ 'is-invalid': formErrors.amount }" placeholder="0" required>
+                  <div v-if="formErrors.amount" class="invalid-feedback">{{ formErrors.amount }}</div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Descripción *</label>
+                  <input v-model="form.description" type="text" class="form-control"
+                    :class="{ 'is-invalid': formErrors.description }" placeholder="Ej: Supermercado, Salario, etc."
+                    maxlength="255" required>
+                  <div v-if="formErrors.description" class="invalid-feedback">{{ formErrors.description }}</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Categoría *</label>
+                  <select v-model="form.categoryId" class="form-select" :class="{ 'is-invalid': formErrors.categoryId }"
+                    required>
+                    <option value="">Seleccionar categoría</option>
+                    <option v-for="category in categories" :key="category.id" :value="category.id">
+                      {{ category.icon }} {{ category.name }}
+                    </option>
+                  </select>
+                  <div v-if="formErrors.categoryId" class="invalid-feedback">{{ formErrors.categoryId }}</div>
+                </div>
+                <div class="col-md-6">
+                  <DatePicker v-model="form.transactionDate" label="Fecha" icon="bi bi-calendar-event"
+                    placeholder="Seleccionar fecha de transacción" :required="true" :clearable="false"
+                    :error-message="formErrors.transactionDate" help-text="Fecha en que se realizó la transacción"
+                    variant="primary" />
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button type="submit" class="btn btn-primary" :disabled="submitting">
+                <span v-if="submitting" class="spinner-border spinner-border-sm me-2"></span>
+                {{ isEditing ? 'Actualizar' : 'Crear' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de confirmación de eliminación -->
+    <div class="modal fade" id="deleteConfirmModal" ref="deleteConfirmModal" tabindex="-1">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+          <div class="modal-header border-0">
+            <h5 class="modal-title text-danger">
+              <i class="bi bi-exclamation-triangle me-2"></i>
+              Confirmar eliminación
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body text-center">
+            <p class="mb-1">¿Estás seguro de eliminar esta transacción?</p>
+            <p class="text-muted small mb-0">Esta acción no se puede deshacer</p>
+            <div v-if="transactionToDelete" class="mt-3 p-3 bg-light rounded">
+              <div class="fw-medium">{{ transactionToDelete.description }}</div>
+              <div class="text-muted">{{ formatCurrency(transactionToDelete.amount) }}</div>
+            </div>
+          </div>
+          <div class="modal-footer border-0 justify-content-center">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-danger" @click="handleDelete" :disabled="deleting">
+              <span v-if="deleting" class="spinner-border spinner-border-sm me-2"></span>
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </AppLayout>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, reactive } from 'vue'
+import { useTransactions } from '@/composables/useTransactions'
+import { useCategories } from '@/composables/useCategories'
+import type { Transaction, TransactionType, CreateTransactionRequest } from '@/types/financial'
+import {
+  formatCurrency,
+  formatDateForDisplay,
+  getTransactionTypeIcon,
+  getTransactionTypeClass,
+  getCurrentDateForInput,
+  validateAmount,
+  validateDescription
+} from '@/services/financialService'
+import DatePicker from '@/components/forms/DatePicker.vue'
+import AppLayout from '@/components/layout/AppLayout.vue'
+
+// Composables
+const {
+  transactions,
+  loading,
+  error,
+  hasTransactions,
+  totalIncome,
+  totalExpenses,
+  netAmount,
+  fetchTransactions,
+  addTransaction,
+  editTransaction,
+  removeTransaction,
+  clearFilters: clearTransactionFilters
+} = useTransactions()
+
+const transactionModal = ref(null)
+const deleteConfirmModal = ref(null)
+
+const {
+  categories,
+  fetchCategories,
+  getCategoryById
+} = useCategories()
+
+// Estado local
+const isEditing = ref(false)
+const editingTransaction = ref<Transaction | null>(null)
+const submitting = ref(false)
+const deleting = ref(false)
+const transactionToDelete = ref<Transaction | null>(null)
+
+// Filtros
+const filters = reactive({
+  type: '',
+  categoryId: '',
+  startDate: '',
+  endDate: ''
+})
+
+// Formulario
+const form = reactive({
+  type: '' as TransactionType | '',
+  amount: '',
+  description: '',
+  categoryId: '',
+  transactionDate: getCurrentDateForInput()
+})
+
+const formErrors = reactive({
+  type: '',
+  amount: '',
+  description: '',
+  categoryId: '',
+  transactionDate: ''
+})
+
+// Métodos
+function clearFormErrors() {
+  Object.keys(formErrors).forEach(key => {
+    formErrors[key as keyof typeof formErrors] = ''
+  })
+}
+
+function validateForm(): boolean {
+  clearFormErrors()
+  let isValid = true
+
+  if (!form.type) {
+    formErrors.type = 'El tipo es requerido'
+    isValid = false
+  }
+
+  console.log('form.amount', form)
+
+  const amountValidation = validateAmount(form.amount)
+  if (!amountValidation.isValid) {
+    formErrors.amount = amountValidation.error || 'Monto inválido'
+    isValid = false
+  }
+
+  const descriptionValidation = validateDescription(form.description)
+  if (!descriptionValidation.isValid) {
+    formErrors.description = descriptionValidation.error || 'Descripción inválida'
+    isValid = false
+  }
+
+  if (!form.categoryId) {
+    formErrors.categoryId = 'La categoría es requerida'
+    isValid = false
+  }
+
+  if (!form.transactionDate) {
+    formErrors.transactionDate = 'La fecha es requerida'
+    isValid = false
+  }
+
+  return isValid
+}
+
+function resetForm() {
+  form.type = ''
+  form.amount = ''
+  form.description = ''
+  form.categoryId = ''
+  form.transactionDate = getCurrentDateForInput()
+  clearFormErrors()
+}
+
+function openCreateModal() {
+  isEditing.value = false
+  editingTransaction.value = null
+  resetForm()
+}
+
+function openEditModal(transaction: Transaction) {
+  isEditing.value = true
+  editingTransaction.value = transaction
+
+  form.type = transaction.type
+  form.amount = transaction.amount
+  form.description = transaction.description
+  form.categoryId = transaction.categoryId
+  form.transactionDate = transaction.transactionDate.split('T')[0]
+
+  clearFormErrors()
+}
+
+async function handleSubmit() {
+  if (!validateForm()) return
+
+  try {
+    submitting.value = true
+
+    const transactionData: CreateTransactionRequest = {
+      type: form.type as TransactionType,
+      amount: parseFloat(form.amount),
+      description: form.description.trim(),
+      categoryId: form.categoryId,
+      transactionDate: form.transactionDate
+    }
+
+    if (isEditing.value && editingTransaction.value) {
+      await editTransaction(editingTransaction.value.id, transactionData)
+    } else {
+      await addTransaction(transactionData)
+    }
+
+    // Cerrar modal usando ref
+    if (transactionModal.value) {
+      const modal = transactionModal.value as HTMLElement
+      const bootstrapModal = (window as any).bootstrap?.Modal?.getInstance(modal)
+      console.log('bootstrapModal', bootstrapModal)
+      if (bootstrapModal) {
+        bootstrapModal.hide()
+      } else {
+        // Fallback: intentar crear nueva instancia y cerrar
+        try {
+          const newBootstrapModal = new (window as any).bootstrap.Modal(modal)
+          console.log('newBootstrapModal', newBootstrapModal)
+          newBootstrapModal.hide()
+        } catch (error) {
+          console.error('No se pudo cerrar el modal automáticamente:', error)
+          // Fallback manual usando el ref
+          const closeButton = modal.querySelector('[data-bs-dismiss="modal"]') as HTMLButtonElement
+          if (closeButton) {
+            closeButton.click()
+          }
+        }
+      }
+    }
+
+    resetForm()
+  } catch (error) {
+    console.error('Error al guardar transacción:', error)
+  } finally {
+    submitting.value = false
+  }
+}
+
+function confirmDelete(transaction: Transaction) {
+  transactionToDelete.value = transaction
+  if (deleteConfirmModal.value) {
+    const modal = deleteConfirmModal.value as HTMLElement
+    try {
+      const bootstrapModal = new (window as any).bootstrap.Modal(modal)
+      bootstrapModal.show()
+    } catch (error) {
+      console.error('Error al mostrar modal de confirmación:', error)
+      // Fallback: usar confirm nativo
+      if (confirm(`¿Estás seguro de eliminar la transacción "${transaction.description}"?\nEsta acción no se puede deshacer.`)) {
+        removeTransaction(transaction.id)
+      }
+    }
+  }
+}
+
+async function handleDelete() {
+  if (!transactionToDelete.value) return
+
+  try {
+    deleting.value = true
+    await removeTransaction(transactionToDelete.value.id)
+
+    // Cerrar modal usando ref
+    if (deleteConfirmModal.value) {
+      const modal = deleteConfirmModal.value as HTMLElement
+      const bootstrapModal = (window as any).bootstrap?.Modal?.getInstance(modal)
+      if (bootstrapModal) {
+        bootstrapModal.hide()
+      } else {
+        // Fallback manual usando el ref
+        const closeButton = modal.querySelector('[data-bs-dismiss="modal"]') as HTMLButtonElement
+        if (closeButton) {
+          closeButton.click()
+        }
+      }
+    }
+
+    transactionToDelete.value = null
+  } catch (error) {
+    console.error('Error al eliminar transacción:', error)
+  } finally {
+    deleting.value = false
+  }
+}
+
+function applyFilters() {
+  const activeFilters: any = {}
+
+  if (filters.type) activeFilters.type = filters.type
+  if (filters.categoryId) activeFilters.categoryId = filters.categoryId
+  if (filters.startDate) activeFilters.startDate = filters.startDate
+  if (filters.endDate) activeFilters.endDate = filters.endDate
+
+  fetchTransactions(activeFilters)
+}
+
+function clearFilters() {
+  filters.type = ''
+  filters.categoryId = ''
+  filters.startDate = ''
+  filters.endDate = ''
+  clearTransactionFilters()
+}
+
+// Lifecycle
+onMounted(async () => {
+  await Promise.all([
+    fetchTransactions(),
+    fetchCategories()
+  ])
+})
+</script>
+
+<style scoped>
+/* Estilos existentes mejorados */
+.table th {
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+.btn-group-sm .btn {
+  padding: 0.25rem 0.5rem;
+}
+
+.badge {
+  font-size: 0.75rem;
+}
+
+/* ===== MEJORAS RESPONSIVE ===== */
+
+/* Estilos del botón volver */
+.btn-outline-secondary {
+  border-color: #dee2e6;
+  color: #6c757d;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-outline-secondary:hover {
+  background-color: #6c757d;
+  border-color: #6c757d;
+  color: #fff;
+  transform: translateX(-2px);
+}
+
+.btn-outline-secondary:focus {
+  box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.25);
+}
+
+/* Animaciones para cards de transacciones en móvil */
+.transaction-card {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  border-radius: 0.75rem;
+}
+
+.transaction-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Responsive para dispositivos móviles pequeños */
+@media (max-width: 575.98px) {
+  .container-fluid {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .card {
+    border-radius: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .card-body {
+    padding: 0.875rem !important;
+  }
+
+  .btn {
+    font-size: 0.8rem;
+    padding: 0.375rem 0.75rem;
+  }
+
+  .btn-sm {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .badge {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  /* Ajustar el título en móviles */
+  .h3 {
+    font-size: 1.5rem;
+  }
+
+  /* Mejorar espaciado en filtros */
+  .row.g-3>* {
+    margin-bottom: 0.75rem;
+  }
+
+  /* Ajustar el modal en móviles */
+  .modal-dialog {
+    margin: 0.5rem;
+  }
+}
+
+/* Responsive para tablets */
+@media (min-width: 576px) and (max-width: 991.98px) {
+
+  .table th,
+  .table td {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .btn-group-sm>.btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .card-body {
+    padding: 1.25rem;
+  }
+}
+
+/* Mejorar experiencia en pantallas medianas */
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .container-fluid {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+/* ===== ANIMACIONES MEJORADAS ===== */
+.btn {
+  transition: all 0.15s ease-in-out;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.badge {
+  transition: all 0.15s ease-in-out;
+}
+
+.form-control,
+.form-select {
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+/* ===== MEJORAS ESPECÍFICAS PARA DATEPICKER ===== */
+@media (max-width: 575.98px) {
+  :deep(.date-picker-container .form-text) {
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+  }
+
+  :deep(.input-group-text) {
+    padding: 0.375rem 0.5rem;
+  }
+
+  :deep(.input-group-sm .input-group-text) {
+    padding: 0.25rem 0.375rem;
+    font-size: 0.8rem;
+  }
+
+  :deep(.input-group-sm .form-control) {
+    font-size: 0.8rem;
+  }
+}
+
+/* ===== UTILIDADES RESPONSIVE ADICIONALES ===== */
+@media (max-width: 767.98px) {
+
+  /* Clases utilitarias personalizadas para móvil */
+  .w-md-auto {
+    width: 100% !important;
+  }
+
+  /* Mejorar el estado de loading en móvil */
+  .spinner-border {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  /* Ajustar iconos en móvil */
+  .fs-1 {
+    font-size: 2.5rem !important;
+  }
+}
+
+/* Asegurar que los botones tengan buen tamaño de toque en móvil */
+@media (max-width: 767.98px) {
+  .btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .btn-sm {
+    min-height: 38px;
+    min-width: 38px;
+  }
+}
+
+/* ===== MEJORAS PARA ACCESIBILIDAD ===== */
+@media (prefers-reduced-motion: reduce) {
+
+  .card,
+  .btn,
+  .badge,
+  .transaction-card {
+    transition: none !important;
+  }
+
+  .card:hover,
+  .btn:hover,
+  .transaction-card:hover {
+    transform: none !important;
+  }
+}
+
+/* Mejorar contraste en modo oscuro si se implementa */
+@media (prefers-color-scheme: dark) {
+  .card {
+    border: 1px solid rgba(255, 255, 255, 0.125);
+  }
+
+  .table-light {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+}
+</style>
