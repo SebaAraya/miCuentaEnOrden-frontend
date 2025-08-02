@@ -10,9 +10,9 @@ import { seedDefaultCategories } from './utils/seedCategories.js';
 
 import authRoutes from './routes/authRoutes.js'
 import financialRoutes from './routes/financialRoutes.js';
-import categoriesRoutes from './routes/categoriesRoutes.js';
 import organizationRoutes from './routes/organizationRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import budgetRoutes from './routes/budgetRoutes.js';
 
 const app: Application = express();
 
@@ -71,7 +71,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/financial', financialRoutes);
 app.use('/api/v1/organizations', organizationRoutes);
 app.use('/api/v1/users', userRoutes);
-// app.use('/api/v1/categories', categoriesRoutes);
+app.use('/api/v1/budgets', budgetRoutes);
 
 // Rutas financieras básicas
 /* app.get('/api/v1/financial/transactions', async (req, res) => {
@@ -138,15 +138,16 @@ app.use('/api/v1', (req, res) => {
   res.json({ 
     message: 'Welcome to MiCuentaEnOrden API',
     version: '1.0.0',
-    endpoints: {
-      health: '/health',
-      auth: '/api/v1/auth',
-      financial: '/api/v1/financial',
-      organizations: '/api/v1/organizations',
-      users: '/api/v1/users',
-      api: '/api/v1',
-      docs: '/api/v1/docs' // Para futura documentación
-    }
+          endpoints: {
+        health: '/health',
+        auth: '/api/v1/auth',
+        financial: '/api/v1/financial',
+        organizations: '/api/v1/organizations',
+        users: '/api/v1/users',
+        budgets: '/api/v1/budgets',
+        api: '/api/v1',
+        docs: '/api/v1/docs' // Para futura documentación
+      }
   });
 });
 
@@ -154,7 +155,7 @@ app.use('/api/v1', (req, res) => {
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-const PORT = config.PORT || 3000;
+const PORT = config.PORT || 3100;
 
 // Función para iniciar el servidor
 async function startServer() {
@@ -180,6 +181,21 @@ async function startServer() {
     process.exit(1);
   }
 }
+
+// Manejo de señales para cierre graceful
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Recibida señal SIGINT, cerrando servidor...');
+  await prisma.$disconnect();
+  console.log('🔌 Desconectado de la base de datos');
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('\n🛑 Recibida señal SIGTERM, cerrando servidor...');
+  await prisma.$disconnect();
+  console.log('🔌 Desconectado de la base de datos');
+  process.exit(0);
+});
 
 // Iniciar servidor
 startServer();

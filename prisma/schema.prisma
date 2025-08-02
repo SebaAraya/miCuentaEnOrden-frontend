@@ -177,6 +177,13 @@ model Budget {
   endDate         DateTime? @map("end_date")
   isActive        Boolean  @default(true) @map("is_active")
   alertThreshold  Decimal  @default(80.0) @map("alert_threshold") @db.Decimal(5, 2)
+  
+  // Campos para presupuestos recurrentes
+  isRecurring     Boolean  @default(false) @map("is_recurring")
+  recurringMonths Int?     @map("recurring_months") // null = indefinido
+  autoAdjust      String   @default("none") @map("auto_adjust") // "none", "inflation", "previous"
+  parentBudgetId  String?  @map("parent_budget_id") // Para presupuestos generados automáticamente
+  
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
@@ -185,6 +192,10 @@ model Budget {
   user                 User                  @relation(fields: [userId], references: [id])
   budgetAlerts         BudgetAlert[]
   monthlyBudgetStatus  MonthlyBudgetStatus[]
+  
+  // Relación auto-referencial para presupuestos padre-hijo
+  parentBudget         Budget?               @relation("BudgetRecurrence", fields: [parentBudgetId], references: [id])
+  childBudgets         Budget[]              @relation("BudgetRecurrence")
 
   @@map("budgets")
 }

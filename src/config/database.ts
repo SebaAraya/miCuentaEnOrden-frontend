@@ -24,17 +24,7 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
-// Manejo de conexión y desconexión
-process.on('beforeExit', async () => {
-  console.log('🔌 Desconectando de la base de datos...');
-  await prisma.$disconnect();
-});
-
-process.on('SIGINT', async () => {
-  console.log('🔌 Desconectando de la base de datos...');
-  await prisma.$disconnect();
-  process.exit(0);
-});
+// El manejo de conexión y desconexión se hace en index.ts
 
 export { prisma };
 export default prisma; 

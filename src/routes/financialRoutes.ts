@@ -172,15 +172,15 @@ router.get('/transactions', authenticateToken, async (req: AuthenticatedRequest,
       where.transactionDate = {}
       
       if (startDate) {
-        const startDateObj = new Date(startDate as string)
-        startDateObj.setHours(0, 0, 0, 0)
-        where.transactionDate.gte = startDateObj
+        const [year, month, day] = (startDate as string).split('-').map(Number);
+        const startDateObj = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+        where.transactionDate.gte = startDateObj;
       }
       
       if (endDate) {
-        const endDateObj = new Date(endDate as string)
-        endDateObj.setHours(23, 59, 59, 999)
-        where.transactionDate.lte = endDateObj
+        const [year, month, day] = (endDate as string).split('-').map(Number);
+        const endDateObj = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+        where.transactionDate.lte = endDateObj;
       }
     }
 
@@ -605,6 +605,7 @@ router.delete('/transactions/:id', authenticateToken, async (req: AuthenticatedR
  */
 router.get('/summary', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    console.log('summary!!!!!!!!!!')
     const userId = req.user!.userId
 
     // Obtener resumen del mes actual
