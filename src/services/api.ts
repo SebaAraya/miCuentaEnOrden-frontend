@@ -1,7 +1,7 @@
-import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
+import axios, { type AxiosInstance, type AxiosResponse, type AxiosRequestConfig } from 'axios'
 import type { ApiResponse } from '@/types/auth'
 
-const API_BASE_URL = 'http://localhost:3000/api/v1'
+const API_BASE_URL = 'http://localhost:3100/api/v1'
 
 class ApiService {
   private api: AxiosInstance
@@ -67,20 +67,20 @@ class ApiService {
   }
 
   // Métodos públicos
-  async get<T>(url: string): Promise<AxiosResponse<ApiResponse<T>>> {
-    return this.api.get(url)
+  async get<T>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<ApiResponse<T>>> {
+    return this.api.get(url, config)
   }
 
-  async post<T>(url: string, data?: any): Promise<AxiosResponse<ApiResponse<T>>> {
-    return this.api.post(url, data)
+  async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<ApiResponse<T>>> {
+    return this.api.post(url, data, config)
   }
 
-  async put<T>(url: string, data?: any): Promise<AxiosResponse<ApiResponse<T>>> {
-    return this.api.put(url, data)
+  async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<ApiResponse<T>>> {
+    return this.api.put(url, data, config)
   }
 
-  async delete<T>(url: string): Promise<AxiosResponse<ApiResponse<T>>> {
-    return this.api.delete(url)
+  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<ApiResponse<T>>> {
+    return this.api.delete(url, config)
   }
 
   // Método para limpiar tokens

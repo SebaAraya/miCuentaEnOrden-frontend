@@ -540,6 +540,35 @@ function resetForm() {
   clearFormErrors()
 }
 
+function fallbackCloseModal(modal: HTMLElement) {
+  try {
+    // Intentar usar el botón de cerrar
+    const closeButton = modal.querySelector('[data-bs-dismiss="modal"]') as HTMLButtonElement
+    if (closeButton) {
+      closeButton.click()
+      return
+    }
+    
+    // Fallback: manipular clases directamente
+    modal.classList.remove('show')
+    modal.setAttribute('aria-hidden', 'true')
+    modal.style.display = 'none'
+    
+    // Remover backdrop si existe
+    const backdrop = document.querySelector('.modal-backdrop')
+    if (backdrop) {
+      backdrop.remove()
+    }
+    
+    // Restaurar scroll del body
+    document.body.classList.remove('modal-open')
+    document.body.style.overflow = ''
+    document.body.style.paddingRight = ''
+  } catch (error) {
+    console.error('Error en fallback de cierre de modal:', error)
+  }
+}
+
 function openCreateModal() {
   isEditing.value = false
   editingTransaction.value = null
@@ -582,22 +611,26 @@ async function handleSubmit() {
     // Cerrar modal usando ref
     if (transactionModal.value) {
       const modal = transactionModal.value as HTMLElement
-      const bootstrapModal = (window as any).bootstrap?.Modal?.getInstance(modal)
-      if (bootstrapModal) {
-        bootstrapModal.hide()
-      } else {
-        // Fallback: intentar crear nueva instancia y cerrar
-        try {
-          const newBootstrapModal = new (window as any).bootstrap.Modal(modal)
-          newBootstrapModal.hide()
-        } catch (error) {
-          console.error('No se pudo cerrar el modal automáticamente:', error)
-          // Fallback manual usando el ref
-          const closeButton = modal.querySelector('[data-bs-dismiss="modal"]') as HTMLButtonElement
-          if (closeButton) {
-            closeButton.click()
+      
+      // Verificar si Bootstrap está disponible
+      if (typeof window !== 'undefined' && (window as any).bootstrap?.Modal) {
+        const bootstrapModal = (window as any).bootstrap.Modal.getInstance(modal)
+        if (bootstrapModal) {
+          bootstrapModal.hide()
+        } else {
+          // Intentar crear nueva instancia y cerrar
+          try {
+            const newBootstrapModal = new (window as any).bootstrap.Modal(modal)
+            newBootstrapModal.hide()
+          } catch (error) {
+            console.error('No se pudo cerrar el modal automáticamente:', error)
+            // Fallback manual
+            fallbackCloseModal(modal)
           }
         }
+      } else {
+        console.warn('Bootstrap no está disponible, usando fallback manual')
+        fallbackCloseModal(modal)
       }
     }
 
