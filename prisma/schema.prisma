@@ -10,7 +10,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -147,7 +147,7 @@ model Category {
 
 model Transaction {
   id                  String           @id @default(uuid())
-  amount              Decimal          @db.Decimal(12, 2)
+  amount              Decimal
   type                TransactionType
   description         String
   transactionDate     DateTime         @map("transaction_date")
@@ -170,13 +170,13 @@ model Budget {
   id              String   @id @default(uuid())
   name            String
   description     String?
-  monthlyAmount   Decimal  @map("monthly_amount") @db.Decimal(12, 2)
+  monthlyAmount   Decimal  @map("monthly_amount") 
   categoryId      String   @map("category_id")
   userId          String   @map("user_id")
   startDate       DateTime @map("start_date")
   endDate         DateTime? @map("end_date")
   isActive        Boolean  @default(true) @map("is_active")
-  alertThreshold  Decimal  @default(80.0) @map("alert_threshold") @db.Decimal(5, 2)
+  alertThreshold  Decimal  @default(80.0) @map("alert_threshold") 
   
   // Campos para presupuestos recurrentes
   isRecurring     Boolean  @default(false) @map("is_recurring")
@@ -205,8 +205,8 @@ model BudgetAlert {
   budgetId        String    @map("budget_id")
   userId          String    @map("user_id")
   alertType       AlertType @map("alert_type")
-  thresholdAmount Decimal   @map("threshold_amount") @db.Decimal(12, 2)
-  currentAmount   Decimal   @map("current_amount") @db.Decimal(12, 2)
+  thresholdAmount Decimal   @map("threshold_amount") 
+  currentAmount   Decimal   @map("current_amount") 
   message         String
   isRead          Boolean   @default(false) @map("is_read")
   createdAt       DateTime  @default(now()) @map("created_at")
@@ -264,9 +264,9 @@ model MonthlySummary {
   categoryId       String   @map("category_id")
   year             Int
   month            Int
-  totalIncome      Decimal  @map("total_income") @db.Decimal(12, 2)
-  totalExpenses    Decimal  @map("total_expenses") @db.Decimal(12, 2)
-  netAmount        Decimal  @map("net_amount") @db.Decimal(12, 2)
+  totalIncome      Decimal  @map("total_income") 
+  totalExpenses    Decimal  @map("total_expenses") 
+  netAmount        Decimal  @map("net_amount") 
   transactionCount Int      @map("transaction_count")
   calculatedAt     DateTime @default(now()) @map("calculated_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
@@ -284,10 +284,10 @@ model MonthlyBudgetStatus {
   budgetId         String       @map("budget_id")
   year             Int
   month            Int
-  budgetedAmount   Decimal      @map("budgeted_amount") @db.Decimal(12, 2)
-  spentAmount      Decimal      @map("spent_amount") @db.Decimal(12, 2)
-  remainingAmount  Decimal      @map("remaining_amount") @db.Decimal(12, 2)
-  percentageUsed   Decimal      @map("percentage_used") @db.Decimal(5, 2)
+  budgetedAmount   Decimal      @map("budgeted_amount") 
+  spentAmount      Decimal      @map("spent_amount") 
+  remainingAmount  Decimal      @map("remaining_amount") 
+  percentageUsed   Decimal      @map("percentage_used") 
   status           BudgetStatus
   calculatedAt     DateTime     @default(now()) @map("calculated_at")
   updatedAt        DateTime     @updatedAt @map("updated_at")
@@ -304,10 +304,10 @@ model MonthlyUserSummary {
   userId          String   @map("user_id")
   year            Int
   month           Int
-  totalIncome     Decimal  @map("total_income") @db.Decimal(12, 2)
-  totalExpenses   Decimal  @map("total_expenses") @db.Decimal(12, 2)
-  netSavings      Decimal  @map("net_savings") @db.Decimal(12, 2)
-  budgetVariance  Decimal  @map("budget_variance") @db.Decimal(12, 2)
+  totalIncome     Decimal  @map("total_income") 
+  totalExpenses   Decimal  @map("total_expenses") 
+  netSavings      Decimal  @map("net_savings") 
+  budgetVariance  Decimal  @map("budget_variance") 
   categoriesCount Int      @map("categories_count")
   calculatedAt    DateTime @default(now()) @map("calculated_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
