@@ -136,6 +136,12 @@
                                     Gestionar Usuarios
                                 </router-link>
                             </li>
+                            <li v-if="roles.canManageUsers">
+                                <router-link to="/categories" class="dropdown-item">
+                                    <i class="bi bi-grid-3x3-gap me-2"></i>
+                                    Gestionar Categorías
+                                </router-link>
+                            </li>
                             <li v-if="roles.hasPermission('canManageOrganizations')">
                                 <router-link to="/organizations" class="dropdown-item">
                                     <i class="bi bi-building me-2"></i>

@@ -32,8 +32,7 @@
                 <i class="bi bi-download me-2"></i>
                 Exportar
               </button> -->
-              <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#transactionModal"
-                @click="openCreateModal">
+              <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#transactionModal">
                 <i class="bi bi-plus-lg me-2"></i>
                 Nueva Transacción
               </button>
@@ -163,8 +162,7 @@
               <i class="bi bi-receipt text-muted" style="font-size: 4rem;"></i>
               <h5 class="text-muted mt-3">No hay transacciones</h5>
               <p class="text-muted">Comienza agregando tu primera transacción</p>
-              <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#transactionModal"
-                @click="openCreateModal">
+              <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#transactionModal">
                 <i class="bi bi-plus-lg me-2"></i>
                 Agregar Transacción
               </button>
@@ -290,72 +288,10 @@
       </div>
     </div>
 
-    <!-- Modal de transacción -->
-    <div class="modal fade" id="transactionModal" ref="transactionModal" tabindex="-1">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">
-              <i class="bi bi-plus-circle me-2"></i>
-              {{ isEditing ? 'Editar' : 'Nueva' }} Transacción
-            </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <form @submit.prevent="handleSubmit">
-            <div class="modal-body">
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <label class="form-label">Tipo *</label>
-                  <select v-model="form.type" class="form-select" :class="{ 'is-invalid': formErrors.type }" required>
-                    <option value="">Seleccionar tipo</option>
-                    <option value="INCOME">Ingreso</option>
-                    <option value="EXPENSE">Gasto</option>
-                  </select>
-                  <div v-if="formErrors.type" class="invalid-feedback">{{ formErrors.type }}</div>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Monto *</label>
-                  <input v-model="form.amount" type="number" step="1" min="1" class="form-control"
-                    :class="{ 'is-invalid': formErrors.amount }" placeholder="0" required>
-                  <div v-if="formErrors.amount" class="invalid-feedback">{{ formErrors.amount }}</div>
-                </div>
-                <div class="col-12">
-                  <label class="form-label">Descripción *</label>
-                  <input v-model="form.description" type="text" class="form-control"
-                    :class="{ 'is-invalid': formErrors.description }" placeholder="Ej: Supermercado, Salario, etc."
-                    maxlength="255" required>
-                  <div v-if="formErrors.description" class="invalid-feedback">{{ formErrors.description }}</div>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Categoría *</label>
-                  <select v-model="form.categoryId" class="form-select" :class="{ 'is-invalid': formErrors.categoryId }"
-                    required>
-                    <option value="">Seleccionar categoría</option>
-                    <option v-for="category in categories" :key="category.id" :value="category.id">
-                      {{ category.icon }} {{ category.name }}
-                    </option>
-                  </select>
-                  <div v-if="formErrors.categoryId" class="invalid-feedback">{{ formErrors.categoryId }}</div>
-                </div>
-                <div class="col-md-6">
-                  <DatePicker v-model="form.transactionDate" label="Fecha" icon="bi bi-calendar-event"
-                    placeholder="Seleccionar fecha de transacción" :required="true" :clearable="false"
-                    :error-message="formErrors.transactionDate" help-text="Fecha en que se realizó la transacción"
-                    variant="primary" />
-                </div>
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-              <button type="submit" class="btn btn-primary" :disabled="submitting">
-                <span v-if="submitting" class="spinner-border spinner-border-sm me-2"></span>
-                {{ isEditing ? 'Actualizar' : 'Crear' }}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+
+
+    <TransactionModal modal-id="transactionModal" :editing-transaction="editingTransaction"
+      @transaction-created="onTransactionCreated" @transaction-updated="onTransactionUpdated" />
 
     <!-- Modal de confirmación de eliminación -->
     <div class="modal fade" id="deleteConfirmModal" ref="deleteConfirmModal" tabindex="-1">
@@ -390,25 +326,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive, watch } from 'vue'
+import { ref, onMounted, reactive, watch } from 'vue'
 import { useTransactions } from '@/composables/useTransactions'
 import { useCategories } from '@/composables/useCategories'
 import { useAuthStore } from '@/stores/auth'
-import type { Transaction, TransactionType, CreateTransactionRequest } from '@/types/financial'
+import type { Transaction } from '@/types/financial'
 import {
   formatCurrency,
   formatDateForDisplay,
   formatDateForInput,
-  formatDateForBackend,
   getTransactionTypeIcon,
-  getTransactionTypeClass,
-  getCurrentDateForInput,
-  validateAmount,
-  validateDescription
+  getTransactionTypeClass
 } from '@/services/financialService'
 import DatePicker from '@/components/forms/DatePicker.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import OrganizationPicker from '@/components/forms/OrganizationPicker.vue'
+import TransactionModal from '@/components/forms/TransactionModal.vue'
 
 // Composables
 const authStore = useAuthStore()
@@ -421,30 +354,24 @@ const {
   totalExpenses,
   netAmount,
   fetchTransactions,
-  addTransaction,
-  editTransaction,
-  removeTransaction,
-  clearFilters: clearTransactionFilters
+  removeTransaction
 } = useTransactions()
 
-const transactionModal = ref(null)
 const deleteConfirmModal = ref(null)
 
 const {
   categories,
   fetchCategories,
-  getCategoryById
+  getCategoryByIdLocal: getCategoryById
 } = useCategories()
 
 // Estado para verificar inicialización
 const isInitialized = ref(false)
 
 // Estado local
-const isEditing = ref(false)
-const editingTransaction = ref<Transaction | null>(null)
-const submitting = ref(false)
 const deleting = ref(false)
 const transactionToDelete = ref<Transaction | null>(null)
+const editingTransaction = ref<Transaction | null>(null)
 
 // Filtros
 // Función para obtener las fechas del mes actual en zona horaria local
@@ -473,174 +400,9 @@ const filters = reactive({
   endDate: currentMonthEnd
 })
 
-// Formulario
-const form = reactive({
-  type: '' as TransactionType | '',
-  amount: '',
-  description: '',
-  categoryId: '',
-  transactionDate: getCurrentDateForInput()
-})
 
-const formErrors = reactive({
-  type: '',
-  amount: '',
-  description: '',
-  categoryId: '',
-  transactionDate: ''
-})
 
 // Métodos
-function clearFormErrors() {
-  Object.keys(formErrors).forEach(key => {
-    formErrors[key as keyof typeof formErrors] = ''
-  })
-}
-
-function validateForm(): boolean {
-  clearFormErrors()
-  let isValid = true
-
-  if (!form.type) {
-    formErrors.type = 'El tipo es requerido'
-    isValid = false
-  }
-
-  const amountValidation = validateAmount(form.amount)
-  if (!amountValidation.isValid) {
-    formErrors.amount = amountValidation.error || 'Monto inválido'
-    isValid = false
-  }
-
-  const descriptionValidation = validateDescription(form.description)
-  if (!descriptionValidation.isValid) {
-    formErrors.description = descriptionValidation.error || 'Descripción inválida'
-    isValid = false
-  }
-
-  if (!form.categoryId) {
-    formErrors.categoryId = 'La categoría es requerida'
-    isValid = false
-  }
-
-  if (!form.transactionDate) {
-    formErrors.transactionDate = 'La fecha es requerida'
-    isValid = false
-  }
-
-  return isValid
-}
-
-function resetForm() {
-  form.type = ''
-  form.amount = ''
-  form.description = ''
-  form.categoryId = ''
-  form.transactionDate = getCurrentDateForInput()
-  clearFormErrors()
-}
-
-function fallbackCloseModal(modal: HTMLElement) {
-  try {
-    // Intentar usar el botón de cerrar
-    const closeButton = modal.querySelector('[data-bs-dismiss="modal"]') as HTMLButtonElement
-    if (closeButton) {
-      closeButton.click()
-      return
-    }
-    
-    // Fallback: manipular clases directamente
-    modal.classList.remove('show')
-    modal.setAttribute('aria-hidden', 'true')
-    modal.style.display = 'none'
-    
-    // Remover backdrop si existe
-    const backdrop = document.querySelector('.modal-backdrop')
-    if (backdrop) {
-      backdrop.remove()
-    }
-    
-    // Restaurar scroll del body
-    document.body.classList.remove('modal-open')
-    document.body.style.overflow = ''
-    document.body.style.paddingRight = ''
-  } catch (error) {
-    console.error('Error en fallback de cierre de modal:', error)
-  }
-}
-
-function openCreateModal() {
-  isEditing.value = false
-  editingTransaction.value = null
-  resetForm()
-}
-
-function openEditModal(transaction: Transaction) {
-  isEditing.value = true
-  editingTransaction.value = transaction
-
-  form.type = transaction.type
-  form.amount = transaction.amount
-  form.description = transaction.description
-  form.categoryId = transaction.categoryId
-  form.transactionDate = formatDateForInput(transaction.transactionDate)
-
-  clearFormErrors()
-}
-
-async function handleSubmit() {
-  if (!validateForm()) return
-
-  try {
-    submitting.value = true
-
-    const transactionData: CreateTransactionRequest = {
-      type: form.type as TransactionType,
-      amount: parseFloat(form.amount),
-      description: form.description.trim(),
-      categoryId: form.categoryId,
-      transactionDate: formatDateForBackend(form.transactionDate)
-    }
-
-    if (isEditing.value && editingTransaction.value) {
-      await editTransaction(editingTransaction.value.id, transactionData)
-    } else {
-      await addTransaction(transactionData)
-    }
-
-    // Cerrar modal usando ref
-    if (transactionModal.value) {
-      const modal = transactionModal.value as HTMLElement
-      
-      // Verificar si Bootstrap está disponible
-      if (typeof window !== 'undefined' && (window as any).bootstrap?.Modal) {
-        const bootstrapModal = (window as any).bootstrap.Modal.getInstance(modal)
-        if (bootstrapModal) {
-          bootstrapModal.hide()
-        } else {
-          // Intentar crear nueva instancia y cerrar
-          try {
-            const newBootstrapModal = new (window as any).bootstrap.Modal(modal)
-            newBootstrapModal.hide()
-          } catch (error) {
-            console.error('No se pudo cerrar el modal automáticamente:', error)
-            // Fallback manual
-            fallbackCloseModal(modal)
-          }
-        }
-      } else {
-        console.warn('Bootstrap no está disponible, usando fallback manual')
-        fallbackCloseModal(modal)
-      }
-    }
-
-    resetForm()
-  } catch (error) {
-    console.error('Error al guardar transacción:', error)
-  } finally {
-    submitting.value = false
-  }
-}
 
 function confirmDelete(transaction: Transaction) {
   transactionToDelete.value = transaction
@@ -738,6 +500,25 @@ async function initializeData() {
   }
 
   isInitialized.value = true
+}
+
+// Función para manejar transacción creada desde el modal
+function onTransactionCreated() {
+  // Recargar transacciones aplicando filtros actuales
+  editingTransaction.value = null
+  applyFilters()
+}
+
+// Función para manejar transacción actualizada desde el modal
+function onTransactionUpdated() {
+  // Recargar transacciones aplicando filtros actuales
+  editingTransaction.value = null
+  applyFilters()
+}
+
+// Función para abrir modal en modo edición
+function openEditModal(transaction: Transaction) {
+  editingTransaction.value = transaction
 }
 
 // Watcher para recargar cuando se seleccione organización

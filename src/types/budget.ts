@@ -65,6 +65,16 @@ export interface UpdateBudgetData {
   isRecurring?: boolean
   recurringMonths?: number
   autoAdjust?: 'none' | 'inflation' | 'previous'
+  updateFutureBudgets?: boolean
+}
+
+export interface BudgetUpdateConfirmation {
+  success: false
+  requiresConfirmation: true
+  message: string
+  budgetType: 'infinite_recurring' | 'limited_recurring' | 'child_of_recurring' | 'not_recurring'
+  affectedBudgetsCount: number
+  parentBudgetId?: string
 }
 
 export interface BudgetFilters {

@@ -9,8 +9,8 @@ import { useAuthStore } from './stores/auth'
 import 'bootstrap/dist/css/bootstrap.min.css'
 // Importar Bootstrap Icons
 import 'bootstrap-icons/font/bootstrap-icons.css'
-// Importar Bootstrap JavaScript
-import 'bootstrap/dist/js/bootstrap.bundle.min.js'
+// Importar Bootstrap JavaScript y configurar globalmente
+import './utils/bootstrap'
 
 const app = createApp(App)
 const pinia = createPinia()

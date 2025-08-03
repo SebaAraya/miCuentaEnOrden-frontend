@@ -1,12 +1,14 @@
 import { ref, computed } from 'vue'
 import budgetService from '../services/budgetService'
 import { useAuthStore } from '../stores/auth'
+import { getCurrentYear, getCurrentMonth } from '../utils/dateUtils'
 import type { 
   BudgetWithRelations, 
   CreateBudgetData, 
   UpdateBudgetData,
   BudgetReport,
-  BudgetStatus
+  BudgetStatus,
+  BudgetUpdateConfirmation
 } from '../types/budget'
 
 // Estado global del composable
@@ -28,8 +30,8 @@ const filters = ref({
   search: '',
   categoryId: undefined as string | undefined,
   isActive: true as boolean | undefined,  // Por defecto solo mostrar presupuestos activos
-  year: new Date().getFullYear() as number | undefined,
-  month: new Date().getMonth() + 1 as number | undefined
+  year: getCurrentYear() as number | undefined,
+  month: getCurrentMonth() as number | undefined
 })
 
 export function useBudgets() {
@@ -139,7 +141,7 @@ export function useBudgets() {
     }
   }
 
-  const updateBudget = async (id: string, data: UpdateBudgetData): Promise<void> => {
+  const updateBudget = async (id: string, data: UpdateBudgetData): Promise<BudgetUpdateConfirmation | null> => {
     try {
       if (!selectedOrganizationId.value) {
         throw new Error('Debe seleccionar una organización')
@@ -148,12 +150,45 @@ export function useBudgets() {
       loading.value = true
       error.value = null
 
-      await budgetService.updateBudget(id, data, selectedOrganizationId.value)
+      const result = await budgetService.updateBudget(id, data, selectedOrganizationId.value)
+      
+      // Si es una respuesta de confirmación, devolverla
+      if ('requiresConfirmation' in result && result.requiresConfirmation) {
+        return result
+      }
+      
+      // Si es una actualización exitosa, recargar datos
+      await fetchBudgets()
+      await fetchBudgetReport()
+      return null
+    } catch (err: any) {
+      console.error('Error updating budget:', err)
+      error.value = err.message || 'Error al actualizar presupuesto'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const updateBudgetWithConfirmation = async (
+    id: string, 
+    data: UpdateBudgetData, 
+    updateFutureBudgets: boolean
+  ): Promise<void> => {
+    try {
+      if (!selectedOrganizationId.value) {
+        throw new Error('Debe seleccionar una organización')
+      }
+
+      loading.value = true
+      error.value = null
+
+      await budgetService.updateBudgetWithConfirmation(id, data, updateFutureBudgets, selectedOrganizationId.value)
       // Recargar presupuestos después de actualizar
       await fetchBudgets()
       await fetchBudgetReport()
     } catch (err: any) {
-      console.error('Error updating budget:', err)
+      console.error('Error updating budget with confirmation:', err)
       error.value = err.message || 'Error al actualizar presupuesto'
       throw err
     } finally {
@@ -225,8 +260,8 @@ export function useBudgets() {
       search: '',
       categoryId: undefined,
       isActive: true,  // Mantener filtro de activos por defecto
-      year: new Date().getFullYear(), // Mantener año actual
-      month: new Date().getMonth() + 1 // Mantener mes actual
+      year: getCurrentYear(), // Mantener año actual
+      month: getCurrentMonth() // Mantener mes actual
     }
     pagination.value.page = 1
     fetchBudgets()
@@ -324,6 +359,7 @@ export function useBudgets() {
     fetchBudgetById,
     createBudget,
     updateBudget,
+    updateBudgetWithConfirmation,
     deleteBudget,
     fetchBudgetReport,
     updateFilters,

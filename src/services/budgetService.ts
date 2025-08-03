@@ -9,7 +9,8 @@ import type {
   BudgetsListApiResponse,
   BudgetApiResponse,
   BudgetReportApiResponse,
-  BudgetStatusApiResponse
+  BudgetStatusApiResponse,
+  BudgetUpdateConfirmation
 } from '../types/budget'
 
 class BudgetService {
@@ -52,7 +53,7 @@ class BudgetService {
       }
     } catch (error: any) {
       console.error('Error getting budgets:', error)
-      throw new Error(error.response?.data?.message || 'Error obteniendo presupuestos')
+      throw new Error(error.message || 'Error obteniendo presupuestos')
     }
   }
 
@@ -78,7 +79,7 @@ class BudgetService {
       return response.data.data
     } catch (error: any) {
       console.error('Error getting budget:', error)
-      throw new Error(error.response?.data?.message || 'Error obteniendo presupuesto')
+      throw new Error(error.message || 'Error obteniendo presupuesto')
     }
   }
 
@@ -105,23 +106,66 @@ class BudgetService {
       return response.data.data
     } catch (error: any) {
       console.error('Error creating budget:', error)
-      throw new Error(error.response?.data?.message || 'Error creando presupuesto')
+      throw new Error(error.message || 'Error creando presupuesto')
     }
   }
 
   /**
    * Actualizar presupuesto
    */
-  async updateBudget(id: string, data: UpdateBudgetData, organizationId?: string): Promise<BudgetWithRelations> {
+  async updateBudget(id: string, data: UpdateBudgetData, organizationId?: string): Promise<BudgetWithRelations | BudgetUpdateConfirmation> {
     try {
       const headers: Record<string, string> = {}
       if (organizationId) {
         headers['x-organization-id'] = organizationId
       }
 
-      const response = await api.put<BudgetApiResponse>(
+      const response = await api.put<BudgetApiResponse | BudgetUpdateConfirmation>(
         `/budgets/${id}`,
         data,
+        { headers }
+      )
+
+      // Si el backend pide confirmación, retornar la respuesta de confirmación
+      if ('requiresConfirmation' in response.data && response.data.requiresConfirmation) {
+        return response.data as BudgetUpdateConfirmation
+      }
+
+      // Si es una respuesta normal exitosa
+      if (!response.data.success || !response.data.data) {
+        throw new Error(response.data.message || 'Error actualizando presupuesto')
+      }
+
+      return response.data.data
+    } catch (error: any) {
+      console.error('Error updating budget:', error)
+      throw new Error(error.message || 'Error actualizando presupuesto')
+    }
+  }
+
+  /**
+   * Actualizar presupuesto con confirmación para presupuestos futuros
+   */
+  async updateBudgetWithConfirmation(
+    id: string, 
+    data: UpdateBudgetData, 
+    updateFutureBudgets: boolean,
+    organizationId?: string
+  ): Promise<BudgetWithRelations> {
+    try {
+      const headers: Record<string, string> = {}
+      if (organizationId) {
+        headers['x-organization-id'] = organizationId
+      }
+
+      const updateData = {
+        ...data,
+        updateFutureBudgets
+      }
+
+      const response = await api.put<BudgetApiResponse>(
+        `/budgets/${id}`,
+        updateData,
         { headers }
       )
 
@@ -131,8 +175,8 @@ class BudgetService {
 
       return response.data.data
     } catch (error: any) {
-      console.error('Error updating budget:', error)
-      throw new Error(error.response?.data?.message || 'Error actualizando presupuesto')
+      console.error('Error updating budget with confirmation:', error)
+      throw new Error(error.message || 'Error actualizando presupuesto')
     }
   }
 
@@ -156,7 +200,7 @@ class BudgetService {
       }
     } catch (error: any) {
       console.error('Error deleting budget:', error)
-      throw new Error(error.response?.data?.message || 'Error eliminando presupuesto')
+      throw new Error(error.message || 'Error eliminando presupuesto')
     }
   }
 
@@ -190,7 +234,7 @@ class BudgetService {
       return response.data.data
     } catch (error: any) {
       console.error('Error getting budget report:', error)
-      throw new Error(error.response?.data?.message || 'Error obteniendo reporte')
+      throw new Error(error.message || 'Error obteniendo reporte')
     }
   }
 
@@ -225,7 +269,7 @@ class BudgetService {
       return response.data.data
     } catch (error: any) {
       console.error('Error getting budget status:', error)
-      throw new Error(error.response?.data?.message || 'Error obteniendo estado')
+      throw new Error(error.message || 'Error obteniendo estado')
     }
   }
 
@@ -250,7 +294,7 @@ class BudgetService {
       }
     } catch (error: any) {
       console.error('Error checking budget alerts:', error)
-      throw new Error(error.response?.data?.message || 'Error verificando alertas')
+      throw new Error(error.message || 'Error verificando alertas')
     }
   }
 

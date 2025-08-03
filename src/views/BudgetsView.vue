@@ -56,7 +56,7 @@
               {{ formatCurrency(parseFloat(report.totalBudgetedAmount)) }}
             </h3>
             <small class="text-muted">{{ report.totalBudgets }} presupuesto{{ report.totalBudgets !== 1 ? 's' : ''
-              }}</small>
+            }}</small>
           </div>
         </div>
       </div>
@@ -455,6 +455,13 @@
           </div>
           <form @submit.prevent="handleSubmit">
             <div class="modal-body">
+              <!-- Alert de error del servidor -->
+              <div v-if="modalError" class="alert alert-danger d-flex align-items-start" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2 mt-1 flex-shrink-0"></i>
+                <div>{{ modalError }}</div>
+                <button type="button" class="btn-close ms-auto" @click="modalError = null"></button>
+              </div>
+
               <div class="row g-3">
                 <div class="col-12">
                   <label class="form-label">Nombre *</label>
@@ -631,6 +638,57 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal de confirmación para presupuestos futuros -->
+    <div class="modal fade" :class="{ show: showConfirmationModal }"
+      :style="{ display: showConfirmationModal ? 'block' : 'none' }" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header border-0">
+            <h5 class="modal-title text-warning">
+              <i class="bi bi-question-circle me-2"></i>
+              Presupuesto Recurrente Detectado
+            </h5>
+            <button type="button" class="btn-close" @click="cancelConfirmation"></button>
+          </div>
+          <div class="modal-body" v-if="confirmationData">
+            <div class="alert alert-info d-flex align-items-start" role="alert">
+              <i class="bi bi-info-circle-fill me-2 mt-1"></i>
+              <div>
+                <p class="mb-2">{{ confirmationData.message }}</p>
+                <div class="mt-3">
+                  <strong>Detalles:</strong>
+                  <ul class="list-unstyled mt-2 mb-0">
+                    <li><i class="bi bi-calendar3 me-2 text-muted"></i>Tipo: {{
+                      getBudgetTypeLabel(confirmationData.budgetType) }}</li>
+                    <li><i class="bi bi-files me-2 text-muted"></i>Presupuestos afectados: {{
+                      confirmationData.affectedBudgetsCount }}</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="mt-4">
+              <h6 class="mb-3">¿Qué deseas hacer?</h6>
+              <div class="d-grid gap-2">
+                <button type="button" class="btn btn-primary btn-lg" @click="handleConfirmation(true)"
+                  :disabled="submitting">
+                  <span v-if="submitting" class="spinner-border spinner-border-sm me-2"></span>
+                  <i class="bi bi-check-all me-2"></i>
+                  Sí, actualizar todos los presupuestos futuros
+                </button>
+                <button type="button" class="btn btn-outline-secondary" @click="handleConfirmation(false)"
+                  :disabled="submitting">
+                  <i class="bi bi-file-earmark me-2"></i>
+                  No, solo actualizar este presupuesto
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Backdrop del modal personalizado -->
+    <div v-if="showConfirmationModal" class="modal-backdrop fade show"></div>
   </AppLayout>
 </template>
 
@@ -639,10 +697,11 @@ import { ref, onMounted, reactive, watch } from 'vue'
 import { useCategories } from '../composables/useCategories'
 import { useBudgets } from '../composables/useBudgets'
 import { useAuthStore } from '../stores/auth'
-import type { BudgetWithRelations, CreateBudgetData, UpdateBudgetData } from '../types/budget'
+import type { BudgetWithRelations, CreateBudgetData, UpdateBudgetData, BudgetUpdateConfirmation } from '../types/budget'
 import AppLayout from '../components/layout/AppLayout.vue'
 import OrganizationPicker from '../components/forms/OrganizationPicker.vue'
 import { getFinancialSummary, formatCurrency } from '../services/financialService'
+import { formatDateForInput, formatEndDateForInput } from '../utils/dateUtils'
 import type { FinancialSummary } from '../types/financial'
 
 // Composables
@@ -658,6 +717,7 @@ const {
   fetchBudgetReport,
   createBudget,
   updateBudget,
+  updateBudgetWithConfirmation,
   deleteBudget,
   updateFilters,
   getStatusColor,
@@ -680,6 +740,13 @@ const deleting = ref(false)
 const budgetToDelete = ref<BudgetWithRelations | null>(null)
 const isInitialized = ref(false)
 const financialSummary = ref<FinancialSummary | null>(null)
+const modalError = ref<string | null>(null)
+
+// Estado para confirmación de presupuestos futuros
+const showConfirmationModal = ref(false)
+const confirmationData = ref<BudgetUpdateConfirmation | null>(null)
+const pendingUpdateData = ref<UpdateBudgetData | null>(null)
+const pendingBudgetId = ref<string | null>(null)
 
 // Formulario
 const form = reactive({
@@ -864,18 +931,20 @@ function validateForm(): boolean {
 function openCreateModal() {
   isEditing.value = false
   editingBudget.value = null
+  modalError.value = null
   resetForm()
 }
 
 function openEditModal(budget: BudgetWithRelations) {
   isEditing.value = true
   editingBudget.value = budget
+  modalError.value = null
 
   form.name = budget.name
   form.categoryId = budget.categoryId
   form.budgetAmount = budget.monthlyAmount.toString()
-  form.startDate = budget.startDate.split('T')[0]
-  form.endDate = budget.endDate ? budget.endDate.split('T')[0] : ''
+  form.startDate = formatDateForInput(budget.startDate)
+  form.endDate = budget.endDate ? formatEndDateForInput(budget.endDate) : ''
   form.description = budget.description || ''
 
   // Calcular mes y año desde la fecha de inicio
@@ -912,39 +981,93 @@ async function handleSubmit() {
     }
 
     if (isEditing.value && editingBudget.value) {
-      await updateBudget(editingBudget.value.id, budgetData as UpdateBudgetData)
+      const result = await updateBudget(editingBudget.value.id, budgetData as UpdateBudgetData)
+
+      // Si el backend pide confirmación, mostrar modal de confirmación
+      if (result && 'requiresConfirmation' in result) {
+        confirmationData.value = result
+        pendingUpdateData.value = budgetData as UpdateBudgetData
+        pendingBudgetId.value = editingBudget.value.id
+        showConfirmationModal.value = true
+        submitting.value = false
+        return // No cerrar el modal principal aún
+      }
     } else {
       await createBudget(budgetData as CreateBudgetData)
     }
 
     // Cerrar modal usando ref
-    if (budgetModal.value) {
-      const modal = budgetModal.value as HTMLElement
-      const bootstrapModal = (window as any).bootstrap?.Modal?.getInstance(modal)
-      if (bootstrapModal) {
-        bootstrapModal.hide()
-      } else {
-        // Fallback: intentar crear nueva instancia y cerrar
-        try {
-          const newBootstrapModal = new (window as any).bootstrap.Modal(modal)
-          newBootstrapModal.hide()
-        } catch (error) {
-          console.error('No se pudo cerrar el modal automáticamente:', error)
-          // Fallback manual usando el ref
-          const closeButton = modal.querySelector('[data-bs-dismiss="modal"]') as HTMLButtonElement
-          if (closeButton) {
-            closeButton.click()
-          }
-        }
-      }
-    }
-
+    closeMainModal()
     resetForm()
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error al guardar presupuesto:', error)
+    modalError.value = error.message || 'Error al guardar el presupuesto'
   } finally {
     submitting.value = false
   }
+}
+
+// Función para cerrar el modal principal
+function closeMainModal() {
+  if (budgetModal.value) {
+    const modal = budgetModal.value as HTMLElement
+    const bootstrapModal = (window as any).bootstrap?.Modal?.getInstance(modal)
+    if (bootstrapModal) {
+      bootstrapModal.hide()
+    } else {
+      // Fallback: intentar crear nueva instancia y cerrar
+      try {
+        const newBootstrapModal = new (window as any).bootstrap.Modal(modal)
+        newBootstrapModal.hide()
+      } catch (error) {
+        console.error('No se pudo cerrar el modal automáticamente:', error)
+        // Fallback manual usando el ref
+        const closeButton = modal.querySelector('[data-bs-dismiss="modal"]') as HTMLButtonElement
+        if (closeButton) {
+          closeButton.click()
+        }
+      }
+    }
+  }
+}
+
+// Función para manejar la confirmación de presupuestos futuros
+async function handleConfirmation(updateFuture: boolean) {
+  if (!pendingBudgetId.value || !pendingUpdateData.value) return
+
+  try {
+    submitting.value = true
+
+    await updateBudgetWithConfirmation(
+      pendingBudgetId.value,
+      pendingUpdateData.value,
+      updateFuture
+    )
+
+    // Cerrar ambos modales
+    showConfirmationModal.value = false
+    closeMainModal()
+    resetForm()
+
+    // Limpiar datos pendientes
+    confirmationData.value = null
+    pendingUpdateData.value = null
+    pendingBudgetId.value = null
+
+  } catch (error) {
+    console.error('Error al actualizar presupuesto con confirmación:', error)
+  } finally {
+    submitting.value = false
+  }
+}
+
+// Función para cancelar la confirmación
+function cancelConfirmation() {
+  showConfirmationModal.value = false
+  confirmationData.value = null
+  pendingUpdateData.value = null
+  pendingBudgetId.value = null
+  submitting.value = false
 }
 
 function confirmDelete(budget: BudgetWithRelations) {
@@ -1077,6 +1200,22 @@ async function fetchFinancialSummary() {
 watch(() => [filters.value.year, filters.value.month], () => {
   fetchFinancialSummary()
 })
+
+// Función helper para obtener el label del tipo de presupuesto
+function getBudgetTypeLabel(type: string): string {
+  switch (type) {
+    case 'infinite_recurring':
+      return 'Presupuesto recurrente infinito'
+    case 'limited_recurring':
+      return 'Presupuesto recurrente con límite'
+    case 'child_of_recurring':
+      return 'Presupuesto hijo de serie recurrente'
+    case 'not_recurring':
+      return 'Presupuesto no recurrente'
+    default:
+      return 'Tipo desconocido'
+  }
+}
 </script>
 
 <style scoped>

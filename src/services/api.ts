@@ -57,6 +57,11 @@ class ApiService {
           }
         }
 
+        // Para otros errores, extraer el mensaje del backend si está disponible
+        if (error.response?.data?.message) {
+          error.message = error.response.data.message
+        }
+        
         return Promise.reject(error)
       }
     )

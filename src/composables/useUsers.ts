@@ -9,6 +9,7 @@ import UserService, {
 import OrganizationService, { type Organization } from '@/services/organizationService'
 import { useRoles } from '@/composables/useRoles'
 import { useAuthStore } from '@/stores/auth'
+import { formatDateTimeForDisplay } from '@/utils/dateUtils'
 
 // Estado global compartido
 const users = ref<User[]>([])
@@ -456,13 +457,7 @@ export function useUsers() {
   }
 
   function formatDate(dateString: string): string {
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+    return formatDateTimeForDisplay(dateString)
   }
 
   return {

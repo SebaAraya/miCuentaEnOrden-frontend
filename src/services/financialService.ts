@@ -6,9 +6,19 @@ import type {
   TransactionFilters,
   TransactionResponse,
   FinancialSummary,
-  CreateCategoryRequest
+  CreateCategoryRequest,
+  UpdateCategoryRequest
 } from '@/types/financial'
 import apiService from './api'
+import { 
+  formatDateForInput, 
+  formatEndDateForInput,
+  formatDateForBackend, 
+  formatEndDateForBackend,
+  formatDateForDisplay, 
+  getCurrentDateForInput,
+  validateDateString 
+} from '@/utils/dateUtils'
 
 // ========================================
 // CATEGORÍAS
@@ -17,17 +27,50 @@ import apiService from './api'
 /**
  * Obtener todas las categorías
  */
-export async function getCategories(): Promise<Category[]> {
-  const response = await apiService.get<Category[]>('/financial/categories')
+export async function getCategories(organizationId?: string): Promise<Category[]> {
+  const params = new URLSearchParams()
+  if (organizationId) params.append('organizationId', organizationId)
+  
+  const queryString = params.toString()
+  const url = `/financial/categories${queryString ? `?${queryString}` : ''}`
+  
+  const response = await apiService.get<Category[]>(url)
   return response.data.data || []
+}
+
+/**
+ * Obtener categoría por ID
+ */
+export async function getCategoryById(id: string): Promise<Category> {
+  const response = await apiService.get<Category>(`/financial/categories/${id}`)
+  return response.data.data!
 }
 
 /**
  * Crear nueva categoría
  */
-export async function createCategory(categoryData: CreateCategoryRequest): Promise<Category> {
-  const response = await apiService.post<Category>('/financial/categories', categoryData)
+export async function createCategory(categoryData: CreateCategoryRequest, organizationId?: string): Promise<Category> {
+  const data = { ...categoryData }
+  if (organizationId) {
+    data.organizationId = organizationId
+  }
+  const response = await apiService.post<Category>('/financial/categories', data)
   return response.data.data!
+}
+
+/**
+ * Actualizar categoría
+ */
+export async function updateCategory(id: string, categoryData: UpdateCategoryRequest): Promise<Category> {
+  const response = await apiService.put<Category>(`/financial/categories/${id}`, categoryData)
+  return response.data.data!
+}
+
+/**
+ * Eliminar categoría
+ */
+export async function deleteCategory(id: string): Promise<void> {
+  await apiService.delete(`/financial/categories/${id}`)
 }
 
 // ========================================
@@ -121,8 +164,6 @@ export function formatCurrency(amount: string | number, currency = '$'): string 
  * Validar monto
  */
 export function validateAmount(amount: string): { isValid: boolean; error?: string } {
-  console.log('amount', amount)
-
   if (!amount || String(amount).trim() === '') {
     return { isValid: false, error: 'El monto es requerido' }
   }
@@ -138,6 +179,21 @@ export function validateAmount(amount: string): { isValid: boolean; error?: stri
 
   if (num > 999999999.99) {
     return { isValid: false, error: 'El monto excede el límite máximo' }
+  }
+
+  return { isValid: true }
+}
+
+/**
+ * Validar fecha
+ */
+export function validateDate(dateString: string): { isValid: boolean; error?: string } {
+  if (!dateString || dateString.trim() === '') {
+    return { isValid: false, error: 'La fecha es requerida' }
+  }
+
+  if (!validateDateString(dateString)) {
+    return { isValid: false, error: 'La fecha no tiene un formato válido' }
   }
 
   return { isValid: true }
@@ -162,67 +218,21 @@ export function validateDescription(description: string): { isValid: boolean; er
   return { isValid: true }
 }
 
-/**
- * Convertir fecha ISO a formato local para input date
- * Esto corrige el problema de zona horaria que causaba que se mostrara un día menos
- */
-export function formatDateForInput(date: Date | string): string {
-  // Si la fecha viene como string, necesitamos parsearlo correctamente
-  let d: Date
-  
-  if (typeof date === 'string') {
-    // Si es una fecha ISO del backend, usamos el constructor Date
-    d = new Date(date)
-    
-    // Para evitar problemas de zona horaria, extraemos solo la parte de fecha
-    // y creamos una nueva fecha local
-    if (date.includes('T')) {
-      const dateOnly = date.split('T')[0]
-      const [year, month, day] = dateOnly.split('-').map(Number)
-      d = new Date(year, month - 1, day)
-    }
-  } else {
-    d = date
-  }
-  
-  // Usar getFullYear, getMonth, getDate para obtener la fecha en zona horaria local
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  
-  return `${year}-${month}-${day}`
-}
+// Funciones de fecha movidas a /utils/dateUtils.ts
+// Mantenemos estas funciones para compatibilidad hacia atrás
+export { formatDateForInput, formatEndDateForInput } from '@/utils/dateUtils'
 
-/**
- * Convertir fecha de input local a formato para envío al backend
- * Convierte la fecha a formato ISO manteniendo la fecha local
- */
-export function formatDateForBackend(dateString: string): string {
-  // dateString viene como "2025-06-29" del input
-  // Creamos la fecha a las 12:00 del día para evitar problemas de zona horaria
-  const [year, month, day] = dateString.split('-').map(Number)
-  const date = new Date(year, month - 1, day, 12, 0, 0)
-  return date.toISOString()
-}
+// Funciones movidas a /utils/dateUtils.ts
+// Mantenemos estas funciones para compatibilidad hacia atrás
+export { formatDateForBackend, formatEndDateForBackend } from '@/utils/dateUtils'
 
-/**
- * Obtener fecha actual en formato para input date
- */
-export function getCurrentDateForInput(): string {
-  return formatDateForInput(new Date())
-}
+// Función movida a /utils/dateUtils.ts
+// Mantenemos esta función para compatibilidad hacia atrás
+export { getCurrentDateForInput } from '@/utils/dateUtils'
 
-/**
- * Formatear fecha para mostrar en UI
- */
-export function formatDateForDisplay(date: string | Date): string {
-  const d = new Date(date)
-  return d.toLocaleDateString('es-CL', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-}
+// Función movida a /utils/dateUtils.ts
+// Mantenemos esta función para compatibilidad hacia atrás
+export { formatDateForDisplay } from '@/utils/dateUtils'
 
 /**
  * Obtener icono para tipo de transacción

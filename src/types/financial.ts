@@ -18,6 +18,7 @@ export interface Category {
   colorHex: string
   icon: string
   isDefault: boolean
+  isIncomeCategory: boolean
   organizationId?: string
   createdAt: string
   updatedAt: string
@@ -29,6 +30,16 @@ export interface CreateCategoryRequest {
   description?: string
   colorHex?: string
   icon?: string
+  isIncomeCategory?: boolean
+}
+
+export interface UpdateCategoryRequest {
+  name?: string
+  description?: string
+  colorHex?: string
+  icon?: string
+  isIncomeCategory?: boolean
+  isActive?: boolean
 }
 
 // Interfaces para transacciones
@@ -126,6 +137,7 @@ export interface CategoryFormData {
   description: string
   colorHex: string
   icon: string
+  isIncomeCategory: boolean
 }
 
 // Interfaces para validación

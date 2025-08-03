@@ -60,6 +60,15 @@ const router = createRouter({
         requiresRole: ['ADMIN', 'COLABORADOR']
       }
     },
+    {
+      path: '/categories',
+      name: 'categories',
+      component: () => import('@/views/CategoriesView.vue'),
+      meta: { 
+        requiresAuth: true,
+        requiresRole: ['ADMIN', 'COLABORADOR']
+      }
+    },
        {
        path: '/organizations',
        name: 'organizations',
